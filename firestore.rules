@@ -1,0 +1,75 @@
+rules_version = '2';
+
+// Règles de sécurité du Carnet des cadeaux.
+// À coller dans : Console Firebase → Firestore Database → Règles → Publier.
+//
+// Principe : l'identité d'une personne est la partie avant le "@" de son identifiant
+// (elodie@example.com → "elodie"). Seuls les membres de la famille (présents dans
+// la collection "membres") ont accès à quoi que ce soit, et le serveur refuse de
+// renvoyer à quelqu'un tout cadeau dont il est le destinataire.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ⚙️ À MODIFIER : l'identifiant de l'organisateur (toi), sans "@example.com".
+    // C'est la seule personne qui peut "s'inscrire" toute seule dans la famille,
+    // à sa première connexion. Ensuite, ce sont les membres qui ajoutent les autres.
+    function organisateur() {
+      return 'ton-prenom';
+    }
+
+    function moi() {
+      return request.auth.token.email.split('@')[0];
+    }
+    function connecte() {
+      return request.auth != null && request.auth.token.email is string;
+    }
+    function estMembre() {
+      return connecte() && exists(/databases/$(database)/documents/membres/$(moi()));
+    }
+
+    // ----- Membres de la famille -----
+    function membreValide(d) {
+      return d.keys().hasOnly(['nom'])
+        && d.nom is string && d.nom.size() > 0 && d.nom.size() <= 40;
+    }
+    match /membres/{membreId} {
+      allow read: if estMembre();
+      allow create: if membreId.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
+        && membreValide(request.resource.data)
+        && (estMembre() || (connecte() && membreId == moi() && moi() == organisateur()));
+      allow update: if estMembre() && membreValide(request.resource.data);
+      // Retirer quelqu'un lui coupe l'accès. On ne peut pas se retirer soi-même.
+      allow delete: if estMembre() && membreId != moi();
+    }
+
+    // ----- Cadeaux -----
+    function cadeauValide(d) {
+      return d.keys().hasOnly(['pour', 'par', 'titre', 'statut', 'prix', 'lien', 'note', 'cree'])
+        && d.par == moi()
+        && d.pour is string && d.pour != moi()
+        && exists(/databases/$(database)/documents/membres/$(d.pour))
+        && d.titre is string && d.titre.size() > 0 && d.titre.size() <= 120
+        && d.statut in ['idee', 'achete', 'emballe']
+        && (d.prix == null || (d.prix is number && d.prix >= 0 && d.prix <= 100000))
+        && d.lien is string && d.lien.size() <= 500
+        && d.note is string && d.note.size() <= 200;
+    }
+    match /cadeaux/{cadeauId} {
+      // La règle clé : jamais de lecture d'un cadeau qui m'est destiné.
+      allow read: if estMembre() && resource.data.pour != moi();
+
+      allow create: if estMembre()
+        && cadeauValide(request.resource.data)
+        && request.resource.data.cree == request.time;
+
+      // Seul l'acheteur modifie ou supprime son cadeau.
+      allow update: if estMembre()
+        && resource.data.par == moi()
+        && cadeauValide(request.resource.data)
+        && request.resource.data.cree == resource.data.cree;
+
+      allow delete: if estMembre() && resource.data.par == moi();
+    }
+  }
+}

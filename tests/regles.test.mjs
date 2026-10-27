@@ -1,0 +1,72 @@
+// Tests des règles de sécurité, dans l'émulateur Firebase (rien n'est envoyé en ligne).
+// Prérequis : Node.js 18+ et Java 11+.   Lancer :  cd tests && npm install && npm test
+import { test, before, after, beforeEach } from "node:test";
+import { readFileSync } from "node:fs";
+import {
+  initializeTestEnvironment, assertSucceeds, assertFails
+} from "@firebase/rules-unit-testing";
+import {
+  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp
+} from "firebase/firestore";
+
+const ORGA = "ton-prenom"; // doit correspondre à organisateur() dans firestore.rules
+let env;
+const as = id => env.authenticatedContext(id, { email: `${id}@example.com` }).firestore();
+const cadeau = (par, pour, extra = {}) => ({
+  par, pour, titre: "Puzzle", statut: "achete", prix: 20, lien: "", note: "", cree: serverTimestamp(), ...extra
+});
+
+before(async () => {
+  env = await initializeTestEnvironment({
+    projectId: "carnet-test",
+    firestore: { rules: readFileSync(new URL("../firestore.rules", import.meta.url), "utf8"), host: "127.0.0.1", port: 8080 }
+  });
+});
+after(() => env.cleanup());
+beforeEach(async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    for (const [id, nom] of [[ORGA, "Orga"], ["alice", "Alice"], ["bob", "Bob"]]) await setDoc(doc(db, "membres", id), { nom });
+    await setDoc(doc(db, "cadeaux", "pourAlice"), { ...cadeau("bob", "alice"), cree: new Date() });
+    await setDoc(doc(db, "cadeaux", "pourBob"), { ...cadeau("alice", "bob"), cree: new Date() });
+  });
+});
+
+test("on ne lit jamais un cadeau qui nous est destiné", async () => {
+  await assertFails(getDoc(doc(as("alice"), "cadeaux", "pourAlice")));
+  await assertFails(getDocs(collection(as("alice"), "cadeaux")));
+});
+test("on lit les cadeaux des autres avec la requête de l'appli", async () => {
+  await assertSucceeds(getDoc(doc(as("alice"), "cadeaux", "pourBob")));
+  const s = await assertSucceeds(getDocs(query(collection(as("alice"), "cadeaux"), where("pour", "!=", "alice"))));
+  if (s.docs.some(d => d.data().pour === "alice")) throw new Error("fuite !");
+});
+test("un inconnu (compte non membre) ne voit rien et ne peut pas s'ajouter", async () => {
+  await assertFails(getDoc(doc(as("intrus"), "cadeaux", "pourBob")));
+  await assertFails(getDocs(collection(as("intrus"), "membres")));
+  await assertFails(setDoc(doc(as("intrus"), "membres", "intrus"), { nom: "Intrus" }));
+});
+test("l'organisateur peut s'inscrire seul la première fois", async () => {
+  await env.withSecurityRulesDisabled(ctx => deleteDoc(doc(ctx.firestore(), "membres", ORGA)));
+  await assertSucceeds(setDoc(doc(as(ORGA), "membres", ORGA), { nom: "Orga" }));
+});
+test("un membre ajoute quelqu'un, mais ne peut pas se retirer lui-même", async () => {
+  await assertSucceeds(setDoc(doc(as("alice"), "membres", "mamie-jeanne"), { nom: "Mamie Jeanne" }));
+  await assertFails(deleteDoc(doc(as("alice"), "membres", "alice")));
+});
+test("créer un cadeau : seulement en son nom et pas pour soi", async () => {
+  await assertSucceeds(setDoc(doc(as("alice"), "cadeaux", "c1"), cadeau("alice", "bob")));
+  await assertFails(setDoc(doc(as("alice"), "cadeaux", "c2"), cadeau("alice", "alice")));
+  await assertFails(setDoc(doc(as("alice"), "cadeaux", "c3"), cadeau("bob", "orga")));
+  await assertFails(setDoc(doc(as("alice"), "cadeaux", "c4"), cadeau("alice", "inconnu")));
+});
+test("seul l'acheteur modifie ou supprime son cadeau", async () => {
+  await assertSucceeds(updateDoc(doc(as("alice"), "cadeaux", "pourBob"), { statut: "emballe" }));
+  await assertFails(updateDoc(doc(as(ORGA), "cadeaux", "pourBob"), { statut: "idee" }));
+  await assertFails(deleteDoc(doc(as(ORGA), "cadeaux", "pourBob")));
+  await assertSucceeds(deleteDoc(doc(as("alice"), "cadeaux", "pourBob")));
+});
+test("on ne peut pas réorienter un cadeau vers soi pour le lire", async () => {
+  await assertFails(updateDoc(doc(as("bob"), "cadeaux", "pourAlice"), { pour: "bob" }));
+});

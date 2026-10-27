@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Carnet des cadeaux</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Carnet des cadeaux</h1>
+      <p class="sub">Ce que chacun a prévu pour les autres. Ta propre liste reste une surprise.</p>
+    </div>
+    <div class="countdown" id="countdown"></div>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <!-- Chargement -->
+  <p id="loading" class="note">Chargement…</p>
+
+  <!-- Connexion -->
+  <section class="card" id="login" hidden>
+    <h2>Connexion</h2>
+    <form id="login-form" class="stack" autocomplete="on">
+      <label>Prénom<input id="l-prenom" name="username" autocomplete="username" required maxlength="40" placeholder="ex. Élodie"></label>
+      <label>Mot de passe<input id="l-mdp" name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit" class="primary" id="l-submit">Se connecter</button>
+    </form>
+    <p class="sub small">Pas encore de compte ? Demande à l'organisateur de la famille de t'en créer un.</p>
+  </section>
+
+  <!-- Vue principale -->
+  <section id="main" class="stack-lg" hidden>
+    <div class="me">
+      <div>
+        <div class="eyebrow">Connecté en tant que</div>
+        <strong id="me-name"></strong>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="row">
+        <button class="ghost" id="open-pwd" type="button">Mot de passe</button>
+        <button class="ghost" id="logout" type="button">Se déconnecter</button>
+      </div>
+    </div>
+
+    <form id="pwd-form" class="card stack" hidden autocomplete="off">
+      <h3>Changer mon mot de passe</h3>
+      <label>Mot de passe actuel<input id="p-old" type="password" autocomplete="current-password" required></label>
+      <label>Nouveau mot de passe (6 caractères minimum)<input id="p-new" type="password" autocomplete="new-password" minlength="6" required></label>
+      <div class="actions">
+        <button type="button" class="ghost" id="p-cancel">Annuler</button>
+        <button type="submit" class="primary">Changer</button>
+      </div>
+    </form>
+
+    <details class="add" id="add-box">
+      <summary id="add-summary">Noter un cadeau</summary>
+      <form id="gift-form" class="grid" autocomplete="off">
+        <label>Pour qui ?<select id="f-pour" required></select></label>
+        <label>Statut
+          <select id="f-statut">
+            <option value="idee">Idée</option>
+            <option value="achete" selected>Acheté</option>
+            <option value="emballe">Emballé</option>
+          </select>
+        </label>
+        <label class="full">Cadeau<input id="f-titre" required maxlength="120" placeholder="ex. Puzzle 1000 pièces, carte de France"></label>
+        <label>Prix (€)<input id="f-prix" type="number" min="0" max="100000" step="0.01" inputmode="decimal" placeholder="25"></label>
+        <label>Lien (facultatif)<input id="f-lien" type="url" maxlength="500" placeholder="https://…"></label>
+        <label class="full">Note (facultatif)<input id="f-note" maxlength="200" placeholder="ex. caché dans le placard du garage"></label>
+        <div class="actions">
+          <button type="button" class="ghost" id="f-cancel" hidden>Annuler</button>
+          <button type="submit" class="primary" id="f-submit">Enregistrer</button>
+        </div>
+      </form>
+    </details>
+
+    <div class="list" id="list"></div>
+
+    <details class="add">
+      <summary>Gérer la famille</summary>
+      <div class="stack" style="padding:0 16px 16px">
+        <ul id="manage-list" class="stack" style="list-style:none;margin:0;padding:0;gap:6px"></ul>
+        <div class="row" style="gap:8px">
+          <input id="new-member" placeholder="Ajouter quelqu'un (ex. Mamie Jeanne)" maxlength="40" style="flex:1 1 200px;width:auto">
+          <button type="button" id="add-member">Ajouter</button>
+        </div>
+        <p class="sub small">Tape le prénom tel qu'il servira à se connecter. Ajouter quelqu'un lui ouvre l'accès au carnet ; l'organisateur doit aussi lui créer un compte dans Firebase avec l'identifiant indiqué. Retirer quelqu'un lui coupe l'accès.</p>
+      </div>
+    </details>
+  </section>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
