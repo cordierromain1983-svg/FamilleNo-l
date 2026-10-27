@@ -41,7 +41,7 @@ label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mute
 .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px}
 .stack{display:flex;flex-direction:column;gap:14px}
 .stack-lg{display:flex;flex-direction:column;gap:22px}
-#login{max-width:420px;width:100%;align-self:center}
+#login,#setup{max-width:420px;width:100%;align-self:center}
 .row{display:flex;gap:4px;flex-wrap:wrap}
 .actions{display:flex;gap:8px;justify-content:flex-end;grid-column:1/-1}
 
