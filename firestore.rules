@@ -15,7 +15,7 @@ service cloud.firestore {
     // C'est la seule personne qui peut "s'inscrire" toute seule dans la famille,
     // à sa première connexion. Ensuite, ce sont les membres qui ajoutent les autres.
     function organisateur() {
-      return 'ton-prenom';
+      return 'romain';
     }
 
     function moi() {

@@ -9,7 +9,7 @@ import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp
 } from "firebase/firestore";
 
-const ORGA = "ton-prenom"; // doit correspondre à organisateur() dans firestore.rules
+const ORGA = "romain"; // doit correspondre à organisateur() dans firestore.rules
 let env;
 const as = id => env.authenticatedContext(id, { email: `${id}@example.com` }).firestore();
 const cadeau = (par, pour, extra = {}) => ({
