@@ -9,6 +9,9 @@ export const firebaseConfig = {
   appId: "1:64261132544:web:21ebe3fda5ed880fcd23e5"
 };
 
-// Domaine "technique" des identifiants. Le prénom "Élodie" devient elodie@example.com.
-// Aucun e-mail n'est jamais envoyé ; ne change ce domaine que si tu sais pourquoi.
+// Domaine "technique" utilisé en interne par Firebase (jamais affiché ni utilisé pour envoyer des e-mails).
 export const DOMAINE_LOGIN = "example.com";
+
+// Identifiant de l'organisateur : le seul compte qu'on peut créer depuis la page de connexion.
+// Doit être identique à organisateur() dans firestore.rules.
+export const ORGANISATEUR = "romain";

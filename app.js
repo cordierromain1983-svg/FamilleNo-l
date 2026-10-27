@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+  getAuth, initializeAuth, inMemoryPersistence, onAuthStateChanged,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
   updatePassword, EmailAuthProvider, reauthenticateWithCredential,
   setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -8,16 +9,16 @@ import {
   getFirestore, collection, doc, query, where, onSnapshot,
   addDoc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig, DOMAINE_LOGIN } from "./config.js";
+import { firebaseConfig, DOMAINE_LOGIN, ORGANISATEUR } from "./config.js";
 
 /* ---------- Outils ---------- */
 const $ = id => document.getElementById(id);
 const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const STATUTS = { idee: "Idée", achete: "Acheté", emballe: "Emballé" };
 
-// "Élodie Martin" -> "elodie-martin" (identifiant = elodie-martin@example.com)
+// "Mamie Jeanne" -> "mamie-jeanne" (lettres, chiffres et tirets seulement)
 export function slug(prenom) {
-  return prenom.normalize("NFD").replace(/[̀-ͯ]/g, "")
+  return prenom.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 const joli = s => s.trim().replace(/\s+/g, " ").replace(/(^|[\s-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
@@ -53,9 +54,20 @@ function confirmBtn(label, onConfirm) {
   return b;
 }
 function show(view) {
-  $("loading").hidden = view !== "loading";
-  $("login").hidden = view !== "login";
-  $("main").hidden = view !== "main";
+  for (const v of ["loading", "login", "setup", "main"]) $(v).hidden = view !== v;
+}
+// L'identifiant est transformé en "adresse" technique, invisible pour l'utilisateur.
+const versEmail = id => `${id}@${DOMAINE_LOGIN}`;
+function messageAuth(e, defaut) {
+  const c = e?.code || "";
+  if (c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found") || c.includes("invalid-email"))
+    return "Identifiant ou mot de passe incorrect.";
+  if (c.includes("email-already-in-use")) return "Cet identifiant est déjà pris.";
+  if (c.includes("weak-password")) return "Mot de passe trop court (6 caractères minimum).";
+  if (c.includes("too-many-requests")) return "Trop d'essais. Attends quelques minutes avant de réessayer.";
+  if (c.includes("operation-not-allowed") || c.includes("admin-restricted")) return "La création de comptes est désactivée dans Firebase (Authentication → Paramètres → Actions des utilisateurs).";
+  if (c.includes("network")) return "Pas de connexion internet.";
+  return defaut;
 }
 
 /* ---------- Compte à rebours ---------- */
@@ -86,27 +98,34 @@ let editing = null;
 let unsubs = [];
 
 /* ---------- Connexion ---------- */
-let prenomSaisi = "";
+let nomOrganisateur = "";   // nom saisi à la création du compte organisateur
 $("login-form").addEventListener("submit", async ev => {
   ev.preventDefault();
-  const prenom = $("l-prenom").value, mdp = $("l-mdp").value;
-  const id = slug(prenom);
-  if (!id) return;
-  prenomSaisi = joli(prenom);
+  const id = slug($("l-id").value), mdp = $("l-mdp").value;
+  if (!id) { notice("Identifiant ou mot de passe incorrect."); return; }
   $("l-submit").disabled = true;
+  try { await signInWithEmailAndPassword(auth, versEmail(id), mdp); notice(""); }
+  catch (e) { notice(messageAuth(e, "Connexion impossible pour le moment. Réessaie.")); }
+  finally { $("l-submit").disabled = false; $("l-mdp").value = ""; }
+});
+
+/* ---------- Première installation : compte de l'organisateur ---------- */
+$("s-id").textContent = ORGANISATEUR;
+$("open-setup").addEventListener("click", () => { notice(""); show("setup"); $("s-nom").focus(); });
+$("s-cancel").addEventListener("click", () => { $("setup-form").reset(); show("login"); });
+$("setup-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  if ($("s-mdp").value !== $("s-mdp2").value) { notice("Les deux mots de passe ne sont pas identiques."); return; }
+  nomOrganisateur = joli($("s-nom").value);
+  $("s-submit").disabled = true;
   try {
-    await signInWithEmailAndPassword(auth, `${id}@${DOMAINE_LOGIN}`, mdp);
-    notice("");
+    await createUserWithEmailAndPassword(auth, versEmail(ORGANISATEUR), $("s-mdp").value);
+    $("setup-form").reset(); notice("");
   } catch (e) {
-    const c = e.code || "";
-    if (c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found") || c.includes("invalid-email"))
-      notice("Prénom ou mot de passe incorrect.");
-    else if (c.includes("too-many-requests"))
-      notice("Trop d'essais. Attends quelques minutes avant de réessayer.");
-    else notice("Connexion impossible pour le moment. Vérifie ta connexion internet.");
-  } finally {
-    $("l-submit").disabled = false; $("l-mdp").value = "";
-  }
+    notice(e.code?.includes("email-already-in-use")
+      ? "Le compte de l'organisateur existe déjà : connecte-toi avec l'identifiant « " + ORGANISATEUR + " »."
+      : messageAuth(e, "La création du compte n'a pas fonctionné. Réessaie."));
+  } finally { $("s-submit").disabled = false; }
 });
 
 $("logout").addEventListener("click", () => signOut(auth));
@@ -121,11 +140,11 @@ onAuthStateChanged(auth, async user => {
   let membre = false;
   try { membre = (await getDoc(ref)).exists(); } catch { /* refusé : pas encore membre */ }
   if (!membre) {
-    try { await setDoc(ref, { nom: prenomSaisi || joli(moi.replace(/-/g, " ")) }); membre = true; }
+    try { await setDoc(ref, { nom: nomOrganisateur || joli(moi.replace(/-/g, " ")) }); membre = true; }
     catch { /* pas l'organisateur */ }
   }
   if (!membre) {
-    notice(`Ton compte (« ${moi} ») n'a pas encore été ajouté à la famille. Demande à un proche déjà connecté de t'ajouter dans « Gérer la famille » avec exactement ce prénom.`);
+    notice(`Ton compte (« ${moi} ») n'a pas accès au carnet. Demande à l'organisateur de la famille.`);
     await signOut(auth);
     return;
   }
@@ -177,7 +196,7 @@ function render() {
   // Une étiquette par membre (sauf moi)
   const list = $("list"); list.replaceChildren();
   const others = members.filter(m => m.id !== moi);
-  if (!others.length) list.append(el("p", { class: "note" }, "Personne d'autre ne s'est encore connecté. Ajoute la famille ci-dessous."));
+  if (!others.length) list.append(el("p", { class: "note" }, "Ajoute les membres de la famille dans « Gérer la famille », tout en bas."));
   for (const m of others) {
     const gs = gifts.filter(g => g.pour === m.id)
       .sort((a, b) => (a.cree?.seconds || 0) - (b.cree?.seconds || 0));
@@ -211,25 +230,50 @@ function render() {
   for (const m of members) {
     const li = el("li", { class: "me", style: "padding:8px 12px" },
       el("div", {}, el("div", {}, m.nom + (m.id === moi ? " (toi)" : "")),
-        el("div", { class: "sub small" }, "identifiant : " + m.id + "@" + DOMAINE_LOGIN)));
+        el("div", { class: "sub small" }, "identifiant : " + m.id)));
     if (m.id !== moi && !gifts.some(g => g.pour === m.id || g.par === m.id))
       li.append(confirmBtn("Retirer", () => deleteDoc(doc(db, "membres", m.id)).catch(writeErr)));
     ul.append(li);
   }
 }
 
-$("add-member").addEventListener("click", () => addMember($("new-member")));
-$("new-member").addEventListener("keydown", e => {
-  if (e.key === "Enter") { e.preventDefault(); addMember($("new-member")); }
-});
-
-async function addMember(input) {
-  const nom = joli(input.value), id = slug(input.value);
-  if (!id) return;
-  if (members.some(m => m.id === id)) { notice(`${nom} est déjà dans la famille.`); return; }
-  try { await setDoc(doc(db, "membres", id), { nom }); input.value = ""; notice(""); }
-  catch (e) { writeErr(e); }
+/* ---------- Ajouter un membre (crée son accès) ---------- */
+// Une 2e instance Firebase, en mémoire, crée le compte sans déconnecter la personne actuelle.
+let authCreation = null;
+function getAuthCreation() {
+  if (!authCreation) authCreation = initializeAuth(initializeApp(firebaseConfig, "creation"), { persistence: inMemoryPersistence });
+  return authCreation;
 }
+let idModifie = false;
+$("m-nom").addEventListener("input", () => { if (!idModifie) $("m-id").value = slug($("m-nom").value); });
+$("m-id").addEventListener("input", () => { idModifie = $("m-id").value !== ""; });
+$("m-id").addEventListener("blur", () => { $("m-id").value = slug($("m-id").value); });
+
+$("member-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const nom = joli($("m-nom").value), id = slug($("m-id").value), mdp = $("m-mdp").value;
+  $("m-id").value = id;
+  if (!nom || !id) return;
+  if (members.some(m => m.id === id)) { notice(`L'identifiant « ${id} » est déjà utilisé dans la famille.`); return; }
+  $("m-submit").disabled = true;
+  try {
+    const a = getAuthCreation();
+    await createUserWithEmailAndPassword(a, versEmail(id), mdp);
+    await signOut(a);
+  } catch (e) {
+    notice(e.code?.includes("email-already-in-use")
+      ? `L'identifiant « ${id} » est déjà pris. Choisis-en un autre (ex. ${id}2).`
+      : messageAuth(e, "La création de l'accès n'a pas fonctionné. Réessaie."));
+    $("m-submit").disabled = false;
+    return;
+  }
+  try {
+    await setDoc(doc(db, "membres", id), { nom });
+    $("member-form").reset(); idModifie = false;
+    notice(`Accès créé pour ${nom} : identifiant « ${id} ». Transmets-lui son mot de passe provisoire.`, true);
+  } catch (e) { writeErr(e); }
+  finally { $("m-submit").disabled = false; }
+});
 
 function writeErr(e) {
   console.error(e);

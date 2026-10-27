@@ -29,11 +29,27 @@
   <section class="card" id="login" hidden>
     <h2>Connexion</h2>
     <form id="login-form" class="stack" autocomplete="on">
-      <label>Prénom<input id="l-prenom" name="username" autocomplete="username" required maxlength="40" placeholder="ex. Élodie"></label>
+      <label>Identifiant<input id="l-id" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="40" placeholder="ex. mamie-jeanne"></label>
       <label>Mot de passe<input id="l-mdp" name="password" type="password" autocomplete="current-password" required></label>
       <button type="submit" class="primary" id="l-submit">Se connecter</button>
     </form>
     <p class="sub small">Pas encore de compte ? Demande à l'organisateur de la famille de t'en créer un.</p>
+    <button type="button" class="ghost small" id="open-setup" style="align-self:flex-start;padding-left:0">Première installation : créer le compte de l'organisateur</button>
+  </section>
+
+  <!-- Création du compte organisateur (une seule fois) -->
+  <section class="card" id="setup" hidden>
+    <h2>Compte de l'organisateur</h2>
+    <form id="setup-form" class="stack" autocomplete="off">
+      <p class="sub">Ton identifiant sera <strong id="s-id"></strong>. Tu pourras ensuite créer les comptes de la famille depuis le site.</p>
+      <label>Ton nom affiché<input id="s-nom" required maxlength="40" placeholder="ex. Romain"></label>
+      <label>Mot de passe (6 caractères minimum)<input id="s-mdp" type="password" autocomplete="new-password" minlength="6" required></label>
+      <label>Confirme le mot de passe<input id="s-mdp2" type="password" autocomplete="new-password" minlength="6" required></label>
+      <div class="actions">
+        <button type="button" class="ghost" id="s-cancel">Retour</button>
+        <button type="submit" class="primary" id="s-submit">Créer mon compte</button>
+      </div>
+    </form>
   </section>
 
   <!-- Vue principale -->
@@ -88,11 +104,14 @@
       <summary>Gérer la famille</summary>
       <div class="stack" style="padding:0 16px 16px">
         <ul id="manage-list" class="stack" style="list-style:none;margin:0;padding:0;gap:6px"></ul>
-        <div class="row" style="gap:8px">
-          <input id="new-member" placeholder="Ajouter quelqu'un (ex. Mamie Jeanne)" maxlength="40" style="flex:1 1 200px;width:auto">
-          <button type="button" id="add-member">Ajouter</button>
-        </div>
-        <p class="sub small">Tape le prénom tel qu'il servira à se connecter. Ajouter quelqu'un lui ouvre l'accès au carnet ; l'organisateur doit aussi lui créer un compte dans Firebase avec l'identifiant indiqué. Retirer quelqu'un lui coupe l'accès.</p>
+        <form id="member-form" class="grid" style="padding:0" autocomplete="off">
+          <h3 class="full" style="font-size:17px">Ajouter quelqu'un</h3>
+          <label>Nom affiché<input id="m-nom" required maxlength="40" placeholder="ex. Mamie Jeanne"></label>
+          <label>Identifiant<input id="m-id" required maxlength="40" autocapitalize="none" spellcheck="false" placeholder="ex. mamie-jeanne"></label>
+          <label class="full">Mot de passe provisoire (6 caractères minimum)<input id="m-mdp" minlength="6" required autocomplete="new-password" placeholder="à lui transmettre"></label>
+          <div class="actions"><button type="submit" class="primary" id="m-submit">Créer son accès</button></div>
+        </form>
+        <p class="sub small">Transmets l'identifiant et le mot de passe provisoire à la personne : elle pourra le changer avec le bouton « Mot de passe ». Retirer quelqu'un lui coupe l'accès.</p>
       </div>
     </details>
   </section>

@@ -4,14 +4,14 @@ rules_version = '2';
 // À coller dans : Console Firebase → Firestore Database → Règles → Publier.
 //
 // Principe : l'identité d'une personne est la partie avant le "@" de son identifiant
-// (elodie@example.com → "elodie"). Seuls les membres de la famille (présents dans
+// (en interne, l'identifiant "elodie" correspond à elodie@example.com). Seuls les membres de la famille (présents dans
 // la collection "membres") ont accès à quoi que ce soit, et le serveur refuse de
 // renvoyer à quelqu'un tout cadeau dont il est le destinataire.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ⚙️ À MODIFIER : l'identifiant de l'organisateur (toi), sans "@example.com".
+    // ⚙️ Identifiant de l'organisateur (identique à ORGANISATEUR dans config.js).
     // C'est la seule personne qui peut "s'inscrire" toute seule dans la famille,
     // à sa première connexion. Ensuite, ce sont les membres qui ajoutent les autres.
     function organisateur() {
