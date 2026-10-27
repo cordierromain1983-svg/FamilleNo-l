@@ -76,21 +76,41 @@
       </div>
     </form>
 
+    <!-- Ma liste d'envies -->
+    <section class="wishlist" id="my-list">
+      <div>
+        <h2>Ma liste d'envies</h2>
+        <p class="sub">Ce que tu aimerais recevoir. Toute la famille la voit, mais tu ne sauras pas ce qui a été acheté.</p>
+      </div>
+      <ul class="items" id="my-wishes"></ul>
+      <details class="add inner" id="wish-box">
+        <summary id="wish-summary">Ajouter une envie</summary>
+        <form id="wish-form" class="grid" autocomplete="off">
+          <label class="full">Ce qui me ferait plaisir<input id="w-titre" required maxlength="120" placeholder="ex. Un roman de Fred Vargas"></label>
+          <label>Lien (facultatif)<input id="w-lien" type="url" maxlength="500" placeholder="https://…"></label>
+          <label>Précision (facultatif)<input id="w-note" maxlength="200" placeholder="ex. taille M, couleur bleue"></label>
+          <div class="actions">
+            <button type="button" class="ghost" id="w-cancel" hidden>Annuler</button>
+            <button type="submit" class="primary" id="w-submit">Ajouter à ma liste</button>
+          </div>
+        </form>
+      </details>
+    </section>
+
+    <!-- Noter une idée ou un achat pour quelqu'un -->
     <details class="add" id="add-box">
-      <summary id="add-summary">Noter un cadeau</summary>
+      <summary id="add-summary">Noter une idée ou un cadeau pour quelqu'un</summary>
       <form id="gift-form" class="grid" autocomplete="off">
         <label>Pour qui ?<select id="f-pour" required></select></label>
-        <label>Statut
-          <select id="f-statut">
-            <option value="idee">Idée</option>
-            <option value="achete" selected>Acheté</option>
-            <option value="emballe">Emballé</option>
+        <label>C'est…
+          <select id="f-type">
+            <option value="idee">Une idée (pas encore acheté)</option>
+            <option value="achete">Un cadeau que j'ai acheté</option>
           </select>
         </label>
         <label class="full">Cadeau<input id="f-titre" required maxlength="120" placeholder="ex. Puzzle 1000 pièces, carte de France"></label>
-        <label>Prix (€)<input id="f-prix" type="number" min="0" max="100000" step="0.01" inputmode="decimal" placeholder="25"></label>
         <label>Lien (facultatif)<input id="f-lien" type="url" maxlength="500" placeholder="https://…"></label>
-        <label class="full">Note (facultatif)<input id="f-note" maxlength="200" placeholder="ex. caché dans le placard du garage"></label>
+        <label>Note (facultatif)<input id="f-note" maxlength="200" placeholder="ex. caché dans le garage"></label>
         <div class="actions">
           <button type="button" class="ghost" id="f-cancel" hidden>Annuler</button>
           <button type="submit" class="primary" id="f-submit">Enregistrer</button>
@@ -98,6 +118,7 @@
       </form>
     </details>
 
+    <div class="legend" id="legend"></div>
     <div class="list" id="list"></div>
 
     <details class="add">

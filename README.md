@@ -6,8 +6,10 @@ Un petit site familial pour noter les cadeaux de Noël qu'on a achetés pour les
 👉 **https://cordierromain1983-svg.github.io/FamilleNo-l/**
 
 - Connexion par **identifiant + mot de passe** (pas d'adresse e-mail)
-- Une étiquette par membre de la famille avec ses cadeaux, qui les a achetés, le prix, un lien, le statut (idée / acheté / emballé)
-- Seul l'acheteur peut modifier ou supprimer son cadeau
+- **Ma liste d'envies** : chacun note ce qu'il aimerait recevoir. Toute la famille la voit, mais personne ne sait lesquelles de ses envies ont été achetées
+- Pour chaque personne, trois rubriques : **Ses envies**, **Idées** (notées par les autres, invisibles pour elle) et **Achetés**
+- Un bouton **Je l'achète** sur chaque envie ou idée ; chaque acheteur a **sa couleur**, pour voir d'un coup d'œil qui a acheté quoi
+- Aucun prix ni budget : ce n'est pas le sujet
 - Le secret est garanti **par le serveur** (règles Firestore) : même en fouillant le code de la page, impossible de lire sa propre liste
 - Hébergement gratuit : **GitHub Pages** (le site) + **Firebase** (comptes et base de données, offre gratuite « Spark »)
 

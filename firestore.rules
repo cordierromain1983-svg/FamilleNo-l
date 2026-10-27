@@ -51,17 +51,48 @@ service cloud.firestore {
       allow delete: if estMembre() && membreId != moi();
     }
 
-    // ----- Cadeaux -----
+    // ----- Envies : ce que chacun aimerait recevoir (visible par toute la famille) -----
+    function texteValide(d) {
+      return d.titre is string && d.titre.size() > 0 && d.titre.size() <= 120
+        && d.get('lien', '') is string && d.get('lien', '').size() <= 500
+        && d.get('note', '') is string && d.get('note', '').size() <= 200;
+    }
+    function envieValide(d) {
+      return d.keys().hasOnly(['pour', 'par', 'titre', 'lien', 'note', 'cree'])
+        && d.par == moi() && d.pour == moi()
+        && texteValide(d);
+    }
+    match /envies/{envieId} {
+      allow read: if estMembre();
+      allow create: if estMembre() && envieValide(request.resource.data)
+        && request.resource.data.cree == request.time;
+      allow update: if estMembre() && resource.data.par == moi()
+        && envieValide(request.resource.data)
+        && request.resource.data.cree == resource.data.cree;
+      allow delete: if estMembre() && resource.data.par == moi();
+    }
+
+    // ----- Cadeaux : idées et achats pour quelqu'un (jamais visibles par le destinataire) -----
+    // par       = qui l'a noté
+    // achetePar = qui l'a acheté (null tant que c'est une idée)
+    // envie     = l'envie de la liste du destinataire qu'il couvre, s'il y en a une
+    function acheteur(d) {
+      return d.get('achetePar', null);
+    }
     function cadeauValide(d) {
-      return d.keys().hasOnly(['pour', 'par', 'titre', 'statut', 'prix', 'lien', 'note', 'cree'])
-        && d.par == moi()
+      return d.keys().hasOnly(['pour', 'par', 'titre', 'lien', 'note', 'cree', 'achetePar', 'envie',
+                               'statut', 'prix'])   // statut et prix : anciennes fiches
         && d.pour is string && d.pour != moi()
         && exists(/databases/$(database)/documents/membres/$(d.pour))
-        && d.titre is string && d.titre.size() > 0 && d.titre.size() <= 120
-        && d.statut in ['idee', 'achete', 'emballe']
-        && (d.prix == null || (d.prix is number && d.prix >= 0 && d.prix <= 100000))
-        && d.lien is string && d.lien.size() <= 500
-        && d.note is string && d.note.size() <= 200;
+        && texteValide(d)
+        && (acheteur(d) == null || acheteur(d) is string)
+        && (d.get('envie', null) == null || d.get('envie', null) is string);
+    }
+    // On ne peut que s'attribuer un achat libre, ou annuler son propre achat.
+    function achatPermis(avant, apres) {
+      return acheteur(apres) == acheteur(avant)
+        || (acheteur(avant) == null && acheteur(apres) == moi())
+        || (acheteur(avant) == moi() && acheteur(apres) == null);
     }
     match /cadeaux/{cadeauId} {
       // La règle clé : jamais de lecture d'un cadeau qui m'est destiné.
@@ -69,15 +100,25 @@ service cloud.firestore {
 
       allow create: if estMembre()
         && cadeauValide(request.resource.data)
+        && request.resource.data.par == moi()
+        && (acheteur(request.resource.data) == null || acheteur(request.resource.data) == moi())
         && request.resource.data.cree == request.time;
 
-      // Seul l'acheteur modifie ou supprime son cadeau.
+      // L'auteur modifie le contenu ; les autres peuvent seulement l'acheter ou annuler leur achat.
       allow update: if estMembre()
-        && resource.data.par == moi()
         && cadeauValide(request.resource.data)
-        && request.resource.data.cree == resource.data.cree;
+        && achatPermis(resource.data, request.resource.data)
+        && request.resource.data.par == resource.data.par
+        && request.resource.data.pour == resource.data.pour
+        && request.resource.data.cree == resource.data.cree
+        && request.resource.data.get('envie', null) == resource.data.get('envie', null)
+        && (resource.data.par == moi()
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['achetePar', 'statut']));
 
-      allow delete: if estMembre() && resource.data.par == moi();
+      // L'auteur supprime sa fiche, sauf si quelqu'un d'autre l'a déjà achetée.
+      allow delete: if estMembre() && resource.data.pour != moi()
+        && resource.data.par == moi()
+        && (acheteur(resource.data) == null || acheteur(resource.data) == moi());
     }
   }
 }

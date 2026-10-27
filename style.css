@@ -4,11 +4,12 @@
   --pine:#1F4D3A; --berry:#A8233A; --gold:#B8862A; --tag:#F6F1E4; --ok:#2E7D4F;
   --display:"Young Serif",Georgia,"Times New Roman",serif;
   --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --chip-bg:92%; --chip-fg:27%; --chip-line:48%;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#111915; --paper:#18231E; --ink:#E6EDE8; --muted:#9AAAA1; --line:#2B3A33;
-  --pine:#7FC3A0; --berry:#F0788C; --gold:#E2B65C; --tag:#222D27; --ok:#6FCF97; color-scheme:dark}}
+  --pine:#7FC3A0; --berry:#F0788C; --gold:#E2B65C; --tag:#222D27; --ok:#6FCF97; --chip-bg:24%; --chip-fg:82%; --chip-line:60%; color-scheme:dark}}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -68,15 +69,13 @@ details.add[open] summary::before{content:"– "}
 .tag-head h3{font-size:22px;color:var(--pine)}
 .tag-head .sum{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
 .gifts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
-.gift{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-top:1px dashed var(--line)}
+.gift{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 12px;padding:9px 0;border-top:1px dashed var(--line)}
 .gift:first-child{border-top:0}
 .g-title{font-weight:600;overflow-wrap:anywhere}
 .g-title a{color:inherit;text-decoration-color:var(--gold);text-underline-offset:3px}
 .g-meta{grid-column:1;color:var(--muted);font-size:13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.g-price{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
-.g-act{grid-column:2;display:flex;justify-content:flex-end;gap:2px}
+.g-act{grid-column:2;grid-row:1 / span 2;display:flex;justify-content:flex-end;align-items:center;gap:2px;flex-wrap:wrap}
 .pill{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
-.s-idee{color:var(--muted)} .s-achete{color:var(--gold)} .s-emballe{color:var(--ok)}
 .empty-tag{color:var(--muted);font-size:14px;margin:0}
 .note{color:var(--muted);font-size:13px;text-align:center;margin:0}
 .notice{background:var(--paper);border:1px solid var(--berry);color:var(--berry);border-radius:10px;padding:10px 14px}
@@ -87,3 +86,29 @@ details.add[open] summary::before{content:"– "}
 label.check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px;cursor:pointer}
 label.check input{width:auto;margin:0;accent-color:var(--pine)}
 .badge{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gold);border:1px solid currentColor;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+
+/* Rubriques d'une étiquette */
+.section{display:flex;flex-direction:column;margin-top:10px}
+.section:first-of-type{margin-top:0}
+.section h4{margin:0 0 2px;font-family:var(--body);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;gap:6px;align-items:baseline}
+.section h4 .n{font-weight:500;letter-spacing:0}
+.section .gift:first-of-type{border-top:0}
+
+/* Code couleur des acheteurs : --h = teinte propre à chaque personne */
+.chip{--h:200;display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;
+  background:hsl(var(--h) 65% var(--chip-bg));color:hsl(var(--h) 60% var(--chip-fg));white-space:nowrap}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:hsl(var(--h) 65% var(--chip-line))}
+.gift.bought{border-left:3px solid hsl(var(--h) 65% var(--chip-line));padding-left:10px;margin-left:-13px}
+.legend{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+.legend[hidden]{display:none}
+button.buy{border-color:var(--pine);color:var(--pine);font-weight:600;padding:5px 12px;font-size:13px}
+button.buy:hover{background:var(--pine);color:var(--paper)}
+
+/* Ma liste d'envies */
+.wishlist{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px 18px 8px;display:flex;flex-direction:column;gap:10px}
+.wishlist h2{font-size:22px;color:var(--pine)}
+.items{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.items .empty-tag{padding:4px 0 8px}
+details.add.inner{border:0;border-top:1px solid var(--line);border-radius:0;margin:0 -18px;background:transparent}
+details.add.inner summary{padding:12px 18px}
+details.add.inner .grid{padding:0 18px 12px}

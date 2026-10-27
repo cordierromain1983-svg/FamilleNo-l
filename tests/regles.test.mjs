@@ -13,8 +13,9 @@ const ORGA = "romain"; // doit correspondre à organisateur() dans firestore.rul
 let env;
 const as = id => env.authenticatedContext(id, { email: `${id}@example.com` }).firestore();
 const cadeau = (par, pour, extra = {}) => ({
-  par, pour, titre: "Puzzle", statut: "achete", prix: 20, lien: "", note: "", cree: serverTimestamp(), ...extra
+  par, pour, titre: "Puzzle", lien: "", note: "", achetePar: null, envie: null, cree: serverTimestamp(), ...extra
 });
+const envie = (qui, extra = {}) => ({ par: qui, pour: qui, titre: "Un livre", lien: "", note: "", cree: serverTimestamp(), ...extra });
 
 before(async () => {
   env = await initializeTestEnvironment({
@@ -58,14 +59,34 @@ test("un membre ajoute quelqu'un, mais ne peut pas se retirer lui-même", async 
 test("créer un cadeau : seulement en son nom et pas pour soi", async () => {
   await assertSucceeds(setDoc(doc(as("alice"), "cadeaux", "c1"), cadeau("alice", "bob")));
   await assertFails(setDoc(doc(as("alice"), "cadeaux", "c2"), cadeau("alice", "alice")));
+  await assertFails(setDoc(doc(as("alice"), "cadeaux", "c6"), cadeau("alice", "bob", { prix: 20, budget: 1 })));
   await assertFails(setDoc(doc(as("alice"), "cadeaux", "c3"), cadeau("bob", "orga")));
   await assertFails(setDoc(doc(as("alice"), "cadeaux", "c4"), cadeau("alice", "inconnu")));
 });
-test("seul l'acheteur modifie ou supprime son cadeau", async () => {
-  await assertSucceeds(updateDoc(doc(as("alice"), "cadeaux", "pourBob"), { statut: "emballe" }));
-  await assertFails(updateDoc(doc(as(ORGA), "cadeaux", "pourBob"), { statut: "idee" }));
+test("seul l'auteur modifie le contenu ou supprime sa fiche", async () => {
+  await assertSucceeds(updateDoc(doc(as("alice"), "cadeaux", "pourBob"), { titre: "Puzzle 2000" }));
+  await assertFails(updateDoc(doc(as(ORGA), "cadeaux", "pourBob"), { titre: "Autre" }));
   await assertFails(deleteDoc(doc(as(ORGA), "cadeaux", "pourBob")));
   await assertSucceeds(deleteDoc(doc(as("alice"), "cadeaux", "pourBob")));
+});
+test("acheter une idée : n'importe qui sauf le destinataire, et seulement pour soi", async () => {
+  await assertSucceeds(updateDoc(doc(as(ORGA), "cadeaux", "pourBob"), { achetePar: ORGA }));
+  await assertFails(updateDoc(doc(as("alice"), "cadeaux", "pourBob"), { achetePar: "alice" }));   // déjà pris
+  await assertFails(updateDoc(doc(as("alice"), "cadeaux", "pourBob"), { achetePar: null }));      // pas le sien
+  await assertFails(deleteDoc(doc(as("alice"), "cadeaux", "pourBob")));                          // acheté par un autre
+  await assertSucceeds(updateDoc(doc(as(ORGA), "cadeaux", "pourBob"), { achetePar: null }));
+  await assertFails(updateDoc(doc(as("bob"), "cadeaux", "pourBob"), { achetePar: "bob" }));       // destinataire
+});
+test("envies : chacun écrit les siennes, toute la famille les lit", async () => {
+  await assertSucceeds(setDoc(doc(as("bob"), "envies", "e1"), envie("bob")));
+  await assertFails(setDoc(doc(as("alice"), "envies", "e2"), envie("bob", { par: "alice" })));
+  await assertSucceeds(getDoc(doc(as("alice"), "envies", "e1")));
+  await assertSucceeds(getDoc(doc(as("bob"), "envies", "e1")));
+  await assertFails(deleteDoc(doc(as("alice"), "envies", "e1")));
+  // acheter une envie de Bob = une fiche cadeau liée, invisible pour Bob
+  await assertSucceeds(setDoc(doc(as("alice"), "cadeaux", "a1"), cadeau("alice", "bob", { achetePar: "alice", envie: "e1" })));
+  await assertFails(getDoc(doc(as("bob"), "cadeaux", "a1")));
+  await assertFails(setDoc(doc(as("alice"), "cadeaux", "a2"), cadeau("alice", "bob", { achetePar: ORGA })));
 });
 test("on ne peut pas réorienter un cadeau vers soi pour le lire", async () => {
   await assertFails(updateDoc(doc(as("bob"), "cadeaux", "pourAlice"), { pour: "bob" }));

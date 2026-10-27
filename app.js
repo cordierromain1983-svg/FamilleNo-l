@@ -13,7 +13,6 @@ import { firebaseConfig, DOMAINE_LOGIN, ORGANISATEUR } from "./config.js";
 
 /* ---------- Outils ---------- */
 const $ = id => document.getElementById(id);
-const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const STATUTS = { idee: "Idée", achete: "Acheté", emballe: "Emballé" };
 
 // "Mamie Jeanne" -> "mamie-jeanne" (lettres, chiffres et tirets seulement)
@@ -93,8 +92,10 @@ setPersistence(auth, browserLocalPersistence).catch(() => {});
 
 let moi = null;          // identifiant (slug) de la personne connectée
 let members = [];        // [{id, nom}]
-let gifts = [];          // cadeaux visibles (jamais ceux pour moi)
-let editing = null;
+let gifts = [];          // idées et achats visibles (jamais ceux pour moi)
+let wishes = [];         // les envies de toute la famille
+let editing = null;      // idée/cadeau en cours de modification
+let editingWish = null;  // envie en cours de modification
 let unsubs = [];
 
 /* ---------- Connexion ---------- */
@@ -131,7 +132,7 @@ $("setup-form").addEventListener("submit", async ev => {
 $("logout").addEventListener("click", () => signOut(auth));
 
 onAuthStateChanged(auth, async user => {
-  unsubs.forEach(u => u()); unsubs = []; members = []; gifts = []; cancelEdit();
+  unsubs.forEach(u => u()); unsubs = []; members = []; gifts = []; wishes = []; cancelEdit(); cancelWish();
   if (!user) { moi = null; show("login"); return; }
   moi = (user.email || "").split("@")[0];
   show("loading");
@@ -160,6 +161,10 @@ onAuthStateChanged(auth, async user => {
     gifts = s.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
   }, err));
+  unsubs.push(onSnapshot(collection(db, "envies"), s => {
+    wishes = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, err));
   show("main");
   render();
 });
@@ -172,60 +177,138 @@ function err(e) {
 
 /* ---------- Affichage ---------- */
 const nameOf = id => members.find(m => m.id === id)?.nom || "Quelqu'un";
+const parDate = (a, b) => (a.cree?.seconds || 0) - (b.cree?.seconds || 0);
+const pl = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
+
+// Qui a acheté ? (les anciennes fiches "acheté/emballé" sans acheteur comptent pour leur auteur)
+const acheteurDe = g => g.achetePar || (g.statut === "achete" || g.statut === "emballe" ? g.par : null);
+
+// Une teinte par personne, stable, bien espacée sur la roue des couleurs.
+const TEINTES = [212, 345, 145, 32, 275, 185, 55, 320, 100, 250, 10, 165];
+function teinte(id) {
+  const adultes = members.filter(m => !m.enfant).map(m => m.id);
+  const i = adultes.indexOf(id);
+  return TEINTES[(i < 0 ? adultes.length : i) % TEINTES.length];
+}
+function puce(id) {
+  const c = el("span", { class: "chip" }, id === moi ? "toi" : nameOf(id));
+  c.style.setProperty("--h", teinte(id));
+  return c;
+}
+function lienOuTexte(titre, lien) {
+  const u = lien && safeUrl(lien);
+  return u ? el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, titre) : titre;
+}
+function ligne({ titre, lien, meta = [], actions = [], acheteur = null }) {
+  const li = el("li", { class: "gift" + (acheteur ? " bought" : "") },
+    el("div", { class: "g-title" }, lienOuTexte(titre, lien)),
+    el("div", { class: "g-act" }, ...actions),
+    meta.length ? el("div", { class: "g-meta" }, ...meta) : null);
+  if (acheteur) li.style.setProperty("--h", teinte(acheteur));
+  return li;
+}
+function rubrique(titre, items, vide) {
+  if (!items.length && !vide) return null;
+  return el("div", { class: "section" },
+    el("h4", {}, titre, items.length ? el("span", { class: "n" }, "· " + items.length) : null),
+    items.length ? el("ul", { class: "gifts" }, ...items) : el("p", { class: "empty-tag" }, vide));
+}
+const bouton = (txt, onclick, cls = "ghost") => el("button", { class: cls, type: "button", onclick }, txt);
+
+/* Actions d'achat */
+async function acheterEnvie(w) {
+  try {
+    await addDoc(collection(db, "cadeaux"), {
+      pour: w.pour, par: moi, achetePar: moi, envie: w.id,
+      titre: w.titre, lien: w.lien || "", note: w.note || "", cree: serverTimestamp()
+    });
+  } catch (e) { writeErr(e); }
+}
+const acheterIdee = g => updateDoc(doc(db, "cadeaux", g.id), { achetePar: moi }).catch(writeErr);
+function annulerAchat(g) {
+  // Un achat fait depuis une liste d'envies disparaît ; une idée redevient une idée.
+  const p = g.envie && g.par === moi ? deleteDoc(doc(db, "cadeaux", g.id))
+    : updateDoc(doc(db, "cadeaux", g.id), g.statut ? { achetePar: null, statut: "idee" } : { achetePar: null });
+  p.catch(writeErr);
+}
 
 function render() {
   if (!moi) return;
   $("me-name").textContent = nameOf(moi);
 
-  const mine = gifts.filter(g => g.par === moi);
-  const total = mine.reduce((s, g) => s + (Number(g.prix) || 0), 0);
-  const todo = mine.filter(g => g.statut === "idee").length;
-  const pl = (n, a, b) => n > 1 ? b : a;
-  $("stats").replaceChildren(
-    el("span", {}, el("b", {}, String(mine.length)), " " + pl(mine.length, "cadeau noté", "cadeaux notés")),
-    el("span", {}, el("b", {}, euro.format(total)), " prévus"),
-    el("span", {}, el("b", {}, String(todo)), " " + pl(todo, "idée à acheter", "idées à acheter"))
-  );
+  const mesEnvies = wishes.filter(w => w.pour === moi).sort(parDate);
+  const mesAchats = gifts.filter(g => acheteurDe(g) === moi);
+  const mesIdees = gifts.filter(g => g.par === moi && !acheteurDe(g));
+  const st = $("stats"); st.replaceChildren(
+    el("span", {}, el("b", {}, String(mesEnvies.length)), mesEnvies.length > 1 ? " envies sur ta liste" : " envie sur ta liste"),
+    el("span", {}, el("b", {}, String(mesIdees.length)), mesIdees.length > 1 ? " idées notées" : " idée notée"),
+    el("span", {}, el("b", {}, String(mesAchats.length)), mesAchats.length > 1 ? " cadeaux achetés" : " cadeau acheté"));
 
-  // Sélecteur "pour qui"
+  // --- Ma liste d'envies (sans jamais montrer ce qui est acheté) ---
+  const mw = $("my-wishes"); mw.replaceChildren();
+  if (!mesEnvies.length) mw.append(el("p", { class: "empty-tag" }, "Ta liste est vide. Ajoute ce qui te ferait plaisir."));
+  for (const w of mesEnvies) mw.append(ligne({
+    titre: w.titre, lien: w.lien, meta: w.note ? [el("span", {}, w.note)] : [],
+    actions: [bouton("Modifier", () => startWish(w)),
+              confirmBtn("Retirer", () => deleteDoc(doc(db, "envies", w.id)).catch(writeErr))]
+  }));
+
+  // --- Sélecteur "pour qui" ---
   const sel = $("f-pour"), keep = sel.value;
   sel.replaceChildren(el("option", { value: "" }, "Choisir…"));
-  for (const m of members) if (m.id !== moi) sel.append(el("option", { value: m.id }, m.nom));
+  for (const m of members) if (m.id !== moi) sel.append(el("option", { value: m.id }, m.nom + (m.enfant ? " (enfant)" : "")));
   if (keep) sel.value = keep;
 
-  // Une étiquette par membre (sauf moi)
+  // --- Légende des couleurs : les personnes qui ont acheté quelque chose ---
+  const acheteurs = [...new Set(gifts.map(acheteurDe).filter(Boolean))]
+    .sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr"));
+  const lg = $("legend"); lg.hidden = !acheteurs.length;
+  lg.replaceChildren(el("span", {}, "Acheté par :"), ...acheteurs.map(puce));
+
+  // --- Une étiquette par personne (sauf moi) ---
   const list = $("list"); list.replaceChildren();
   const others = members.filter(m => m.id !== moi);
   if (!others.length) list.append(el("p", { class: "note" }, "Ajoute les membres de la famille dans « Gérer la famille », tout en bas."));
   for (const m of others) {
-    const gs = gifts.filter(g => g.pour === m.id)
-      .sort((a, b) => (a.cree?.seconds || 0) - (b.cree?.seconds || 0));
-    const sum = gs.reduce((s, g) => s + (Number(g.prix) || 0), 0);
-    const ul = el("ul", { class: "gifts" });
-    for (const g of gs) {
-      const u = g.lien && safeUrl(g.lien);
-      const title = u ? el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, g.titre) : g.titre;
-      const meta = el("div", { class: "g-meta" },
-        el("span", { class: "pill s-" + (STATUTS[g.statut] ? g.statut : "achete") }, STATUTS[g.statut] || "Acheté"),
-        el("span", {}, "par " + (g.par === moi ? "toi" : nameOf(g.par))),
-        g.note ? el("span", {}, "· " + g.note) : null);
-      const act = el("div", { class: "g-act" });
-      if (g.par === moi) {
-        act.append(el("button", { class: "ghost", type: "button", onclick: () => startEdit(g) }, "Modifier"));
-        act.append(confirmBtn("Supprimer", () => deleteDoc(doc(db, "cadeaux", g.id)).catch(writeErr)));
+    const sesCadeaux = gifts.filter(g => g.pour === m.id);
+    const couvertes = new Map(sesCadeaux.filter(g => g.envie && acheteurDe(g)).map(g => [g.envie, g]));
+
+    // Envies pas encore achetées
+    const envies = wishes.filter(w => w.pour === m.id && !couvertes.has(w.id)).sort(parDate).map(w => ligne({
+      titre: w.titre, lien: w.lien, meta: w.note ? [el("span", {}, w.note)] : [],
+      actions: [bouton("Je l'achète", () => acheterEnvie(w), "buy")]
+    }));
+    // Idées pas encore achetées
+    const idees = sesCadeaux.filter(g => !acheteurDe(g)).sort(parDate).map(g => ligne({
+      titre: g.titre, lien: g.lien,
+      meta: [el("span", {}, "idée de " + (g.par === moi ? "toi" : nameOf(g.par))), g.note ? el("span", {}, "· " + g.note) : null],
+      actions: [bouton("Je l'achète", () => acheterIdee(g), "buy"),
+                ...(g.par === moi ? [bouton("Modifier", () => startEdit(g)),
+                                     confirmBtn("Supprimer", () => deleteDoc(doc(db, "cadeaux", g.id)).catch(writeErr))] : [])]
+    }));
+    // Achetés, avec la couleur de l'acheteur
+    const achetes = sesCadeaux.filter(g => acheteurDe(g)).sort(parDate).map(g => {
+      const qui = acheteurDe(g);
+      const origine = g.envie ? "de sa liste" : g.par !== qui ? "idée de " + (g.par === moi ? "toi" : nameOf(g.par)) : null;
+      const actions = [];
+      if (qui === moi) {
+        if (g.par === moi && !g.envie) actions.push(bouton("Modifier", () => startEdit(g)));
+        actions.push(confirmBtn("Annuler l'achat", () => annulerAchat(g)));
       }
-      ul.append(el("li", { class: "gift" },
-        el("div", { class: "g-title" }, title),
-        el("div", { class: "g-price" }, typeof g.prix === "number" ? euro.format(g.prix) : "—"),
-        meta, act));
-    }
+      return ligne({ titre: g.titre, lien: g.lien, acheteur: qui, actions,
+        meta: [puce(qui), origine ? el("span", {}, origine) : null, g.note ? el("span", {}, "· " + g.note) : null] });
+    });
+
     list.append(el("article", { class: "tag" },
-      el("div", { class: "tag-head" }, el("h3", {}, m.nom),
-        el("span", { class: "sum" }, gs.length ? `${gs.length} ${pl(gs.length, "cadeau", "cadeaux")} · ${euro.format(sum)}` : "")),
-      gs.length ? ul : el("p", { class: "empty-tag" }, "Rien de prévu pour l'instant.")));
+      el("div", { class: "tag-head" },
+        el("h3", {}, m.nom, m.enfant ? el("span", { class: "badge" }, "enfant") : null),
+        el("span", { class: "sum" }, achetes.length ? pl(achetes.length, "cadeau acheté", "cadeaux achetés") : "")),
+      m.enfant ? null : rubrique("Ses envies", envies, "Pas d'envie notée pour l'instant."),
+      rubrique("Idées", idees, m.enfant ? "Pas encore d'idée. Note la première !" : null),
+      rubrique("Achetés", achetes, null)));
   }
 
-  // Gestion de la famille
+  // --- Gestion de la famille ---
   const ul = $("manage-list"); ul.replaceChildren();
   for (const m of members) {
     const li = el("li", { class: "me", style: "padding:8px 12px" },
@@ -236,7 +319,9 @@ function render() {
     if (m.id !== moi && !m.enfant && m.id !== ORGANISATEUR)
       act.append(confirmBtn("Passer en enfant", () =>
         updateDoc(doc(db, "membres", m.id), { enfant: true }).catch(writeErr)));
-    if (m.id !== moi && !gifts.some(g => g.pour === m.id || g.par === m.id))
+    const utilise = gifts.some(g => g.pour === m.id || g.par === m.id || g.achetePar === m.id)
+      || wishes.some(w => w.pour === m.id);
+    if (m.id !== moi && !utilise)
       act.append(confirmBtn("Retirer", () => deleteDoc(doc(db, "membres", m.id)).catch(writeErr)));
     li.append(act);
     ul.append(li);
@@ -309,40 +394,77 @@ function writeErr(e) {
     : "L'enregistrement n'a pas fonctionné. Réessaie dans un instant.");
 }
 
-/* ---------- Formulaire cadeau ---------- */
+/* ---------- Formulaire : idée ou cadeau pour quelqu'un ---------- */
 function startEdit(g) {
-  editing = g.id;
-  $("f-pour").value = g.pour; $("f-statut").value = g.statut || "achete";
-  $("f-titre").value = g.titre || ""; $("f-prix").value = g.prix ?? "";
-  $("f-lien").value = g.lien || ""; $("f-note").value = g.note || "";
-  $("add-summary").textContent = "Modifier le cadeau"; $("f-submit").textContent = "Mettre à jour";
+  editing = g;
+  $("f-pour").value = g.pour; $("f-pour").disabled = true;
+  $("f-type").value = acheteurDe(g) ? "achete" : "idee";
+  $("f-type").disabled = !!(acheteurDe(g) && acheteurDe(g) !== moi) || (g.par !== moi);
+  $("f-titre").value = g.titre || ""; $("f-lien").value = g.lien || ""; $("f-note").value = g.note || "";
+  $("add-summary").textContent = "Modifier"; $("f-submit").textContent = "Mettre à jour";
   $("f-cancel").hidden = false; $("add-box").open = true;
   $("add-box").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function cancelEdit() {
-  editing = null; $("gift-form").reset(); $("f-statut").value = "achete";
-  $("add-summary").textContent = "Noter un cadeau"; $("f-submit").textContent = "Enregistrer";
+  editing = null; $("gift-form").reset(); $("f-pour").disabled = false; $("f-type").disabled = false;
+  $("add-summary").textContent = "Noter une idée ou un cadeau pour quelqu'un"; $("f-submit").textContent = "Enregistrer";
   $("f-cancel").hidden = true;
 }
 $("f-cancel").addEventListener("click", cancelEdit);
 
 $("gift-form").addEventListener("submit", async ev => {
   ev.preventDefault();
-  const pour = $("f-pour").value, titre = $("f-titre").value.trim();
+  const pour = editing ? editing.pour : $("f-pour").value, titre = $("f-titre").value.trim();
   if (!moi || !pour || !titre || pour === moi) return;
-  const prixRaw = $("f-prix").value;
-  const data = {
-    pour, par: moi, titre, statut: $("f-statut").value,
-    prix: prixRaw === "" ? null : Math.round(Number(prixRaw) * 100) / 100,
-    lien: $("f-lien").value.trim(), note: $("f-note").value.trim()
-  };
+  const texte = { titre, lien: $("f-lien").value.trim(), note: $("f-note").value.trim() };
+  const achete = $("f-type").value === "achete";
   $("f-submit").disabled = true;
   try {
-    if (editing) await updateDoc(doc(db, "cadeaux", editing), data);
-    else await addDoc(collection(db, "cadeaux"), { ...data, cree: serverTimestamp() });
-    cancelEdit(); $("add-box").open = false; notice("");
+    if (editing && editing.par === moi) {
+      // L'auteur réécrit sa fiche (en retirant les anciens champs prix/statut).
+      const g = editing;
+      await setDoc(doc(db, "cadeaux", g.id), {
+        pour: g.pour, par: g.par, cree: g.cree, envie: g.envie || null, ...texte,
+        achetePar: $("f-type").disabled ? (acheteurDe(g) || null) : (achete ? moi : null)
+      });
+    } else if (editing) {
+      // Acheteur d'une idée d'un autre : il ne peut changer que l'achat, pas le texte.
+      notice("Seule la personne qui a noté cette idée peut modifier son texte.");
+    } else {
+      await addDoc(collection(db, "cadeaux"), {
+        pour, par: moi, achetePar: achete ? moi : null, envie: null, ...texte, cree: serverTimestamp()
+      });
+    }
+    cancelEdit(); $("add-box").open = false;
   } catch (e) { writeErr(e); }
   finally { $("f-submit").disabled = false; }
+});
+
+/* ---------- Ma liste d'envies ---------- */
+function startWish(w) {
+  editingWish = w;
+  $("w-titre").value = w.titre || ""; $("w-lien").value = w.lien || ""; $("w-note").value = w.note || "";
+  $("wish-summary").textContent = "Modifier l'envie"; $("w-submit").textContent = "Mettre à jour";
+  $("w-cancel").hidden = false; $("wish-box").open = true; $("w-titre").focus();
+}
+function cancelWish() {
+  editingWish = null; $("wish-form").reset();
+  $("wish-summary").textContent = "Ajouter une envie"; $("w-submit").textContent = "Ajouter à ma liste";
+  $("w-cancel").hidden = true;
+}
+$("w-cancel").addEventListener("click", () => { cancelWish(); $("wish-box").open = false; });
+$("wish-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const titre = $("w-titre").value.trim(); if (!moi || !titre) return;
+  const texte = { titre, lien: $("w-lien").value.trim(), note: $("w-note").value.trim() };
+  $("w-submit").disabled = true;
+  try {
+    if (editingWish) await updateDoc(doc(db, "envies", editingWish.id), texte);
+    else await addDoc(collection(db, "envies"), { pour: moi, par: moi, ...texte, cree: serverTimestamp() });
+    const continuer = !editingWish;
+    cancelWish(); $("wish-box").open = continuer; if (continuer) $("w-titre").focus();
+  } catch (e) { writeErr(e); }
+  finally { $("w-submit").disabled = false; }
 });
 
 /* ---------- Mot de passe ---------- */
