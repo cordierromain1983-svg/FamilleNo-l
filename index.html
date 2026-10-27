@@ -7,17 +7,33 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Nunito:wght@400;600;700;800;900&display=swap">
+  <meta name="theme-color" content="#0E1A2E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!-- Décor : neige qui tombe et collines enneigées -->
+<canvas id="snow" aria-hidden="true"></canvas>
+<svg class="hills" aria-hidden="true" viewBox="0 0 1440 180" preserveAspectRatio="none">
+  <path class="hill-far" d="M0 90 C 180 40 330 60 480 85 S 820 30 1000 70 S 1300 50 1440 75 V180 H0Z"/>
+  <g class="pines">
+    <path d="M150 92 l14 -34 l14 34 h-8 l10 -6 h-32 l10 6Z"/>
+    <path d="M190 96 l10 -24 l10 24Z"/>
+    <path d="M1180 74 l16 -40 l16 40Z"/>
+    <path d="M1222 80 l11 -27 l11 27Z"/>
+    <path d="M1250 82 l8 -20 l8 20Z"/>
+    <path d="M720 76 l9 -22 l9 22Z"/>
+  </g>
+  <path class="hill-near" d="M0 130 C 240 95 420 110 640 125 S 1040 95 1240 112 S 1380 120 1440 110 V180 H0Z"/>
+</svg>
+
 <div class="wrap">
-  <header>
-    <div>
-      <h1>Carnet des cadeaux</h1>
-      <p class="sub">Ce que chacun a prévu pour les autres. Ta propre liste reste une surprise.</p>
+  <header class="hero">
+    <div class="hero-text">
+      <h1>Le carnet<br>des cadeaux</h1>
+      <p class="lede">Notez vos envies, partagez vos idées, et chut&nbsp;: personne ne voit ce qu'on lui prépare.</p>
     </div>
-    <div class="countdown" id="countdown"></div>
+    <div class="bauble" id="countdown" role="img"></div>
   </header>
 
   <div id="notice" class="notice" hidden></div>
@@ -27,7 +43,7 @@
 
   <!-- Connexion -->
   <section class="card" id="login" hidden>
-    <h2>Connexion</h2>
+    <h2>Ouvre le carnet</h2>
     <form id="login-form" class="stack" autocomplete="on">
       <label>Identifiant<input id="l-id" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="40" placeholder="ex. mamie-jeanne"></label>
       <label>Mot de passe<input id="l-mdp" name="password" type="password" autocomplete="current-password" required></label>
@@ -79,12 +95,12 @@
     <!-- Ma liste d'envies -->
     <section class="wishlist" id="my-list">
       <div>
-        <h2>Ma liste d'envies</h2>
-        <p class="sub">Ce que tu aimerais recevoir. Toute la famille la voit, mais tu ne sauras pas ce qui a été acheté.</p>
+        <h2>Ma lettre au Père Noël</h2>
+        <p class="sub">Ce qui te ferait plaisir. Toute la famille la lit, mais tu ne sauras pas ce qui a été acheté.</p>
       </div>
       <ul class="items" id="my-wishes"></ul>
       <details class="add inner" id="wish-box">
-        <summary id="wish-summary">Ajouter une envie</summary>
+        <summary id="wish-summary">Ajouter une envie à ma lettre</summary>
         <form id="wish-form" class="grid" autocomplete="off">
           <label class="full">Ce qui me ferait plaisir<input id="w-titre" required maxlength="120" placeholder="ex. Un roman de Fred Vargas"></label>
           <label>Lien (facultatif)<input id="w-lien" type="url" maxlength="500" placeholder="https://…"></label>
@@ -138,6 +154,35 @@
     </details>
   </section>
 </div>
+<script>
+// Flocons : légers, en arrière-plan, arrêtés si l'onglet est caché ou si l'on préfère moins d'animations.
+(() => {
+  const c = document.getElementById("snow"), x = c.getContext("2d");
+  const calme = matchMedia("(prefers-reduced-motion: reduce)");
+  let W, H, flocons = [], dpr = Math.min(devicePixelRatio || 1, 2);
+  function taille() {
+    W = c.width = innerWidth * dpr; H = c.height = innerHeight * dpr;
+    c.style.width = innerWidth + "px"; c.style.height = innerHeight + "px";
+    const n = Math.round(Math.min(140, innerWidth / 9));
+    flocons = Array.from({ length: n }, () => nouveau(true));
+  }
+  function nouveau(partout) {
+    const r = (Math.random() ** 2 * 2.6 + 0.7) * dpr;
+    return { x: Math.random() * W, y: partout ? Math.random() * H : -10, r,
+             v: (0.25 + r / dpr * 0.28) * dpr, d: Math.random() * 6.28, a: 0.45 + Math.random() * 0.5 };
+  }
+  function dessine(bouge) {
+    x.clearRect(0, 0, W, H);
+    for (const f of flocons) {
+      if (bouge) { f.y += f.v; f.d += 0.01; f.x += Math.sin(f.d) * 0.35 * dpr; if (f.y > H + 10) Object.assign(f, nouveau(false)); }
+      x.globalAlpha = f.a; x.beginPath(); x.arc(f.x, f.y, f.r, 0, 6.29); x.fillStyle = "#fff"; x.fill();
+    }
+  }
+  function boucle() { if (!document.hidden && !calme.matches) dessine(true); requestAnimationFrame(boucle); }
+  addEventListener("resize", () => { taille(); dessine(false); });
+  taille(); dessine(false); requestAnimationFrame(boucle);
+})();
+</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

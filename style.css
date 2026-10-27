@@ -1,114 +1,216 @@
-/* Un carnet étroit, une étiquette-cadeau par destinataire */
+/* ------------------------------------------------------------------
+   Le carnet des cadeaux — une nuit de Noël
+   Décor : ciel de nuit étoilé, neige qui tombe, collines enneigées.
+   Contenu : cartes en papier crème posées sur la neige, chacune emballée
+   comme un paquet (ruban + nœud). Thème unique et volontaire (nuit).
+------------------------------------------------------------------- */
 :root{
-  --bg:#EEF2EE; --paper:#FFFFFF; --ink:#1C2B24; --muted:#5E6E66; --line:#D5DDD7;
-  --pine:#1F4D3A; --berry:#A8233A; --gold:#B8862A; --tag:#F6F1E4; --ok:#2E7D4F;
-  --display:"Young Serif",Georgia,"Times New Roman",serif;
-  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --night:#0E1A2E;  --night-2:#1B3152;  --glow:#F3D88A;
+  --snow:#F6F8FB;   --paper:#FFFBF2;    --paper-2:#F8EFDD;
+  --ink:#2B211C;    --muted:#7B6C5F;    --line:#E7DAC3;
+  --berry:#B4202F;  --berry-d:#8E1623;  --pine:#1F5C42;  --gold:#C9952E;
+  --ribbon:var(--berry);
+  --display:"Mountains of Christmas","Georgia",serif;
+  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
   --chip-bg:92%; --chip-fg:27%; --chip-line:48%;
   color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#111915; --paper:#18231E; --ink:#E6EDE8; --muted:#9AAAA1; --line:#2B3A33;
-  --pine:#7FC3A0; --berry:#F0788C; --gold:#E2B65C; --tag:#222D27; --ok:#6FCF97; --chip-bg:24%; --chip-fg:82%; --chip-line:60%; color-scheme:dark}}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
-.wrap{max-width:760px;margin:0 auto;padding-block:28px 64px;
+html{-webkit-text-size-adjust:100%;background:var(--night)}
+body{
+  margin:0;min-height:100vh;color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.5;
+  background:
+    radial-gradient(1.2px 1.2px at 12% 18%,#fff9 50%,transparent 51%),
+    radial-gradient(1px 1px at 28% 8%,#fff8 50%,transparent 51%),
+    radial-gradient(1.4px 1.4px at 47% 22%,#fffa 50%,transparent 51%),
+    radial-gradient(1px 1px at 63% 12%,#fff7 50%,transparent 51%),
+    radial-gradient(1.3px 1.3px at 78% 26%,#fff9 50%,transparent 51%),
+    radial-gradient(1px 1px at 91% 9%,#fff8 50%,transparent 51%),
+    radial-gradient(1px 1px at 6% 40%,#fff6 50%,transparent 51%),
+    radial-gradient(1px 1px at 86% 44%,#fff6 50%,transparent 51%),
+    radial-gradient(120% 70% at 50% 0%,var(--night-2) 0%,var(--night) 70%) fixed;
+  background-color:var(--night);
+}
+#snow{position:fixed;inset:0;pointer-events:none;z-index:0}
+.hills{position:fixed;left:0;right:0;bottom:0;width:100%;height:clamp(90px,16vh,170px);pointer-events:none;z-index:0}
+.hill-far{fill:#DCE6F2}
+.hill-near{fill:var(--snow)}
+.pines path{fill:#28456A}
+
+.wrap{position:relative;z-index:1;max-width:780px;margin:0 auto;
+  padding-block:34px clamp(120px,20vh,200px);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   display:flex;flex-direction:column;gap:22px}
-h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
-h2{font-size:24px} h3{font-size:20px}
-header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
-header h1{font-size:clamp(28px,6vw,40px);color:var(--pine);line-height:1.1}
+
+h1,h2,h3,h4{margin:0;text-wrap:balance}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--glow);outline-offset:2px}
+
+/* ---------- En-tête ---------- */
+.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding-top:6px}
+.hero h1{font-family:var(--display);font-weight:700;color:#fff;
+  font-size:clamp(46px,10vw,82px);line-height:.92;letter-spacing:.5px;
+  text-shadow:0 0 22px #F3D88A55,0 3px 0 #0006}
+.lede{color:#C9D6E8;margin:14px 0 0;max-width:34ch;font-size:16px}
+
+/* Le compte à rebours dans une boule de Noël, suspendue à un fil */
+.bauble{flex:none;position:relative;margin-top:44px;width:118px;height:118px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;
+  background:radial-gradient(circle at 34% 28%,#ff8a8f 0 7%,#e0384a 22%,var(--berry) 52%,#6e0f1a 100%);
+  box-shadow:inset -8px -12px 22px #0005,0 10px 30px #0008,0 0 40px #e0384a40;
+  transform-origin:50% -44px;animation:balance 5s ease-in-out infinite}
+.bauble::before{content:"";position:absolute;top:-14px;left:50%;width:30px;height:16px;transform:translateX(-50%);
+  border-radius:4px 4px 2px 2px;background:linear-gradient(90deg,#9c7a2b,#f3d88a 45%,#9c7a2b)}
+.bauble::after{content:"";position:absolute;top:-44px;left:50%;width:1.5px;height:30px;background:#ffffff80}
+.bauble .j{font-family:var(--display);font-weight:700;font-size:38px;line-height:1}
+.bauble .t{font-size:12px;font-weight:700;opacity:.9}
+@keyframes balance{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+
+/* ---------- Éléments communs ---------- */
 .sub{color:var(--muted);margin:4px 0 0}
 .small{font-size:13px}
-.countdown{font-family:var(--display);color:var(--berry);font-size:15px;text-align:right}
-.countdown b{display:block;font-size:34px;line-height:1;font-weight:400}
-
-button,input,select{font:inherit;color:inherit}
-button{cursor:pointer;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 14px}
-button:hover{border-color:var(--pine)}
+.note{color:#C9D6E8;font-size:14px;text-align:center;margin:0}
+label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted);font-weight:700;min-width:0}
+input,select{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+input:focus,select:focus{border-color:var(--gold);outline:none;box-shadow:0 0 0 3px #C9952E33}
+button{cursor:pointer;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:8px 14px;font-weight:700}
+button:hover{border-color:var(--ink)}
 button:disabled{opacity:.6;cursor:wait}
-button.primary{background:var(--pine);border-color:var(--pine);color:var(--paper);font-weight:600}
-button.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:6px 8px}
+button.primary{background:var(--berry);border-color:var(--berry);color:#fff;box-shadow:0 3px 0 var(--berry-d)}
+button.primary:hover{background:#c52636}
+button.primary:active{transform:translateY(2px);box-shadow:0 1px 0 var(--berry-d)}
+button.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:6px 8px;font-weight:700}
 button.ghost:hover{color:var(--berry)}
-:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
-label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
-.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+/* « Je l'achète » : un petit paquet cadeau dans le bouton */
+button.buy{display:inline-flex;align-items:center;gap:6px;border-color:var(--pine);color:var(--pine);background:#fff;padding:5px 12px;font-size:13.5px}
+button.buy::before{content:"";width:15px;height:15px;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 10h18v4H3zM5 14h14v7H5zM11 10h2v11h-2zM12 10c-2-4-7-5-7-2 0 2 4 2 7 2zM12 10c2-4 7-5 7-2 0 2-4 2-7 2z'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 10h18v4H3zM5 14h14v7H5zM11 10h2v11h-2zM12 10c-2-4-7-5-7-2 0 2 4 2 7 2zM12 10c2-4 7-5 7-2 0 2-4 2-7 2z'/%3E%3C/svg%3E") center/contain no-repeat}
+button.buy:hover{background:var(--pine);color:#fff}
 
-.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px}
+.card{background:var(--paper);border-radius:18px;padding:24px;box-shadow:0 14px 40px #0007}
+.card h2,.wishlist h2{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.05;color:var(--berry)}
+.card h3{font-weight:800;font-size:19px}
 .stack{display:flex;flex-direction:column;gap:14px}
 .stack-lg{display:flex;flex-direction:column;gap:22px}
-#login,#setup{max-width:420px;width:100%;align-self:center}
-.row{display:flex;gap:4px;flex-wrap:wrap}
+#login,#setup{max-width:430px;width:100%;align-self:center;position:relative;border-top:10px solid var(--berry)}
+.row{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 .actions{display:flex;gap:8px;justify-content:flex-end;grid-column:1/-1}
+.notice{background:var(--paper);border-left:6px solid var(--berry);color:var(--berry-d);border-radius:12px;padding:12px 16px;font-weight:700;box-shadow:0 8px 24px #0006}
+.notice.ok{border-left-color:var(--pine);color:var(--pine)}
 
-.me{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-  background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
-.me strong{font-family:var(--display);font-weight:400;font-size:20px}
-.stats{display:flex;gap:18px;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;flex-wrap:wrap}
-.stats b{color:var(--ink);font-size:15px}
+/* Bandeau « connecté en tant que », en verre givré */
+.me{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;
+  background:#ffffff14;border:1px solid #ffffff26;border-radius:16px;padding:12px 16px;color:#fff;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.me .eyebrow{font-size:12.5px;color:#B9C8DD;font-weight:700}
+.me strong{font-family:var(--display);font-size:30px;line-height:1}
+.stats{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;color:#D7E1EE}
+.stats b{color:var(--glow);font-size:16px;margin-right:3px}
+.me button.ghost{color:#C9D6E8}
+.me button.ghost:hover{color:#fff}
 
-details.add{background:var(--paper);border:1px solid var(--line);border-radius:12px}
-details.add summary{cursor:pointer;padding:14px 16px;font-weight:600;color:var(--pine);list-style:none}
+/* Formulaires repliables, en papier */
+details.add{background:var(--paper);border-radius:16px;box-shadow:0 10px 30px #0006}
+details.add summary{cursor:pointer;padding:15px 18px;font-weight:800;color:var(--pine);list-style:none;display:flex;align-items:center;gap:10px}
 details.add summary::-webkit-details-marker{display:none}
-details.add summary::before{content:"+ ";font-weight:700}
-details.add[open] summary::before{content:"– "}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 16px 16px}
+details.add summary::before{content:"+";display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;
+  background:var(--pine);color:#fff;font-weight:900;line-height:1;transition:transform .2s}
+details.add[open] summary::before{transform:rotate(45deg)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 18px 18px}
 .grid .full{grid-column:1/-1}
-@media (max-width:520px){.grid{grid-template-columns:1fr}}
+@media (max-width:540px){.grid{grid-template-columns:1fr}}
 
-.list{display:flex;flex-direction:column;gap:16px}
-.tag{background:var(--tag);border:1px solid var(--line);border-radius:6px 14px 14px 6px;position:relative;padding:16px 18px 14px 34px}
-.tag::before{content:"";position:absolute;left:12px;top:22px;width:9px;height:9px;border-radius:50%;
-  background:var(--bg);border:1.5px solid var(--gold)}
-.tag-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
-.tag-head h3{font-size:22px;color:var(--pine)}
-.tag-head .sum{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+/* ---------- Ma lettre au Père Noël : papier ligné avec un timbre ---------- */
+.wishlist{position:relative;background:
+    repeating-linear-gradient(to bottom,transparent 0 31px,#d9c9ad66 31px 32px),var(--paper);
+  border-radius:6px 6px 18px 18px;padding:24px 22px 6px;box-shadow:0 14px 40px #0007;
+  display:flex;flex-direction:column;gap:8px;border-top:6px double var(--berry)}
+.wishlist::after{content:"";position:absolute;top:16px;right:18px;width:54px;height:64px;transform:rotate(6deg);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 48'%3E%3Crect x='3' y='3' width='34' height='42' fill='%23B4202F'/%3E%3Cpath d='M20 9 L29 26 H24 L31 38 H9 L16 26 H11Z' fill='%23F6F8FB'/%3E%3Crect x='18' y='38' width='4' height='4' fill='%23F6F8FB'/%3E%3C/svg%3E") center/100% 100% no-repeat;
+  filter:drop-shadow(0 2px 2px #0003);
+  -webkit-mask:radial-gradient(circle 2.6px at 50% 50%,#0000 98%,#000) -3px -3px/6px 6px;mask:radial-gradient(circle 2.6px at 50% 50%,#0000 98%,#000) -3px -3px/6px 6px}
+.wishlist > div:first-child{padding-right:70px}
+.wishlist .sub{font-size:14.5px}
+.items{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.wishlist .empty-tag{font-family:var(--display);font-weight:700;font-size:22px;color:var(--muted);padding:2px 0 8px}
+details.add.inner{box-shadow:none;background:transparent;border-top:1.5px dashed var(--line);border-radius:0;margin:6px -22px 0}
+details.add.inner summary{padding:13px 22px}
+details.add.inner .grid{padding:0 22px 16px}
+
+/* ---------- Légende des couleurs ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:13px;color:#C9D6E8;font-weight:700}
+
+/* ---------- Une carte par personne, emballée comme un paquet ---------- */
+.list{display:flex;flex-direction:column;gap:30px;padding-top:6px}
+.tag{position:relative;background:var(--paper);border-radius:16px;padding:20px 76px 16px 22px;
+  box-shadow:0 14px 34px #0007;transition:transform .25s ease}
+.tag:nth-child(3n+2){--ribbon:var(--pine)}
+.tag:nth-child(3n){--ribbon:var(--gold)}
+.tag:nth-child(odd){transform:rotate(-.5deg)}
+.tag:nth-child(even){transform:rotate(.5deg)}
+@media (hover:hover){.tag:hover{transform:rotate(0) translateY(-2px)}}
+/* le ruban vertical */
+.tag::before{content:"";position:absolute;top:0;bottom:0;right:30px;width:16px;
+  background:linear-gradient(90deg,#0002,transparent 30%,transparent 70%,#0002),var(--ribbon)}
+/* le nœud */
+.tag::after{content:"";position:absolute;top:-22px;right:4px;width:68px;height:44px;background:var(--ribbon);
+  filter:drop-shadow(0 3px 2px #0004);
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 68 44'%3E%3Cpath d='M34 20C22 2 3 3 6 15c2 9 16 9 28 7zM34 20C46 2 65 3 62 15c-2 9-16 9-28 7zM30 22l-9 20 6-3 5 5 2-21zM38 22l9 20-6-3-5 5-2-21z'/%3E%3Ccircle cx='34' cy='21' r='6'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 68 44'%3E%3Cpath d='M34 20C22 2 3 3 6 15c2 9 16 9 28 7zM34 20C46 2 65 3 62 15c-2 9-16 9-28 7zM30 22l-9 20 6-3 5 5 2-21zM38 22l9 20-6-3-5 5-2-21z'/%3E%3Ccircle cx='34' cy='21' r='6'/%3E%3C/svg%3E") center/contain no-repeat}
+.tag-head{display:flex;justify-content:space-between;align-items:baseline;gap:4px 12px;flex-wrap:wrap;margin-bottom:6px}
+.tag-head h3{font-family:var(--display);font-weight:700;font-size:34px;line-height:1;color:var(--ink)}
+.tag-head .sum{font-size:13px;font-weight:800;color:var(--pine)}
+.badge{font-family:var(--body);font-size:12px;font-weight:800;color:var(--gold);border:1.5px solid currentColor;
+  border-radius:999px;padding:1px 9px;margin-left:10px;vertical-align:6px}
+
+/* Rubriques dans une carte */
+.section{display:flex;flex-direction:column;margin-top:12px}
+.section h4{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:900;color:var(--berry);margin-bottom:2px}
+.section h4 .n{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;
+  background:var(--paper-2);color:var(--muted);font-size:12px}
 .gifts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
-.gift{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 12px;padding:9px 0;border-top:1px dashed var(--line)}
+.gift{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 12px;padding:10px 0;border-top:1.5px dashed var(--line)}
 .gift:first-child{border-top:0}
-.g-title{font-weight:600;overflow-wrap:anywhere}
-.g-title a{color:inherit;text-decoration-color:var(--gold);text-underline-offset:3px}
-.g-meta{grid-column:1;color:var(--muted);font-size:13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.g-title{font-weight:800;font-size:16px;overflow-wrap:anywhere}
+.g-title a{color:inherit;text-decoration-color:var(--gold);text-decoration-thickness:2px;text-underline-offset:3px}
+.g-meta{grid-column:1;color:var(--muted);font-size:13px;display:flex;gap:4px 10px;flex-wrap:wrap;align-items:center}
+.g-meta .note-txt{font-style:italic}
 .g-act{grid-column:2;grid-row:1 / span 2;display:flex;justify-content:flex-end;align-items:center;gap:2px;flex-wrap:wrap}
-.pill{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
-.empty-tag{color:var(--muted);font-size:14px;margin:0}
-.note{color:var(--muted);font-size:13px;text-align:center;margin:0}
-.notice{background:var(--paper);border:1px solid var(--berry);color:var(--berry);border-radius:10px;padding:10px 14px}
-.notice.ok{border-color:var(--ok);color:var(--ok)}
-@media (prefers-reduced-motion:no-preference){.tag{animation:in .25s ease-out both}}
-@keyframes in{from{transform:translateY(4px)}to{transform:none}}
-
-label.check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px;cursor:pointer}
-label.check input{width:auto;margin:0;accent-color:var(--pine)}
-.badge{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gold);border:1px solid currentColor;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
-
-/* Rubriques d'une étiquette */
-.section{display:flex;flex-direction:column;margin-top:10px}
-.section:first-of-type{margin-top:0}
-.section h4{margin:0 0 2px;font-family:var(--body);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;gap:6px;align-items:baseline}
-.section h4 .n{font-weight:500;letter-spacing:0}
-.section .gift:first-of-type{border-top:0}
+.empty-tag{color:var(--muted);font-size:14px;margin:0;padding:4px 0}
+@media (max-width:520px){
+  .tag{padding-right:60px}
+  .tag::before{right:22px;width:13px}
+  .tag::after{right:-2px;width:58px}
+  .gift{grid-template-columns:1fr}
+  .g-act{grid-column:1;grid-row:auto;justify-content:flex-start}
+}
 
 /* Code couleur des acheteurs : --h = teinte propre à chaque personne */
-.chip{--h:200;display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;
+.chip{--h:200;display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px 2px 8px;font-size:12.5px;font-weight:800;
   background:hsl(var(--h) 65% var(--chip-bg));color:hsl(var(--h) 60% var(--chip-fg));white-space:nowrap}
-.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:hsl(var(--h) 65% var(--chip-line))}
-.gift.bought{border-left:3px solid hsl(var(--h) 65% var(--chip-line));padding-left:10px;margin-left:-13px}
-.legend{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
-.legend[hidden]{display:none}
-button.buy{border-color:var(--pine);color:var(--pine);font-weight:600;padding:5px 12px;font-size:13px}
-button.buy:hover{background:var(--pine);color:var(--paper)}
+.legend .chip{box-shadow:0 0 0 1.5px #ffffff40}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;background:hsl(var(--h) 65% var(--chip-line))}
+.gift.bought{position:relative;padding-left:14px}
+.gift.bought::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:4px;background:hsl(var(--h) 65% var(--chip-line))}
+.gift.bought .g-title{text-decoration:none}
 
-/* Ma liste d'envies */
-.wishlist{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px 18px 8px;display:flex;flex-direction:column;gap:10px}
-.wishlist h2{font-size:22px;color:var(--pine)}
-.items{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
-.items .empty-tag{padding:4px 0 8px}
-details.add.inner{border:0;border-top:1px solid var(--line);border-radius:0;margin:0 -18px;background:transparent}
-details.add.inner summary{padding:12px 18px}
-details.add.inner .grid{padding:0 18px 12px}
+/* ---------- Gérer la famille ---------- */
+#manage-list .me{background:var(--paper-2);border:0;color:var(--ink);-webkit-backdrop-filter:none;backdrop-filter:none}
+#manage-list .me .sub{color:var(--muted)}
+label.check{flex-direction:row;align-items:center;gap:10px;color:var(--ink);font-size:14.5px;cursor:pointer}
+label.check input{width:18px;height:18px;margin:0;accent-color:var(--pine)}
+
+@media (max-width:520px){
+  .bauble{margin-top:40px;width:84px;height:84px}
+  .bauble .j{font-size:27px}
+  .bauble .t{font-size:10.5px}
+  .card h2,.wishlist h2{font-size:30px}
+}
+@media (prefers-reduced-motion:reduce){
+  .bauble{animation:none}
+  .tag,details.add summary::before{transition:none}
+}

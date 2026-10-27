@@ -76,7 +76,9 @@ function messageAuth(e, defaut) {
   let xmas = new Date(y, 11, 25);
   if (today > xmas) xmas = new Date(y + 1, 11, 25);
   const d = Math.round((xmas - today) / 864e5);
-  $("countdown").innerHTML = d > 0 ? `<b>J-${d}</b>avant Noël` : `<b>Joyeux Noël</b>`;
+  const b = $("countdown");
+  b.innerHTML = d > 0 ? `<span class="j">J-${d}</span><span class="t">avant Noël</span>` : `<span class="t">Joyeux</span><span class="j">Noël</span>`;
+  b.setAttribute("aria-label", d > 0 ? `Plus que ${d} jours avant Noël` : "Joyeux Noël");
 })();
 
 /* ---------- Firebase ---------- */
@@ -210,7 +212,7 @@ function ligne({ titre, lien, meta = [], actions = [], acheteur = null }) {
 function rubrique(titre, items, vide) {
   if (!items.length && !vide) return null;
   return el("div", { class: "section" },
-    el("h4", {}, titre, items.length ? el("span", { class: "n" }, "· " + items.length) : null),
+    el("h4", {}, titre, items.length ? el("span", { class: "n" }, String(items.length)) : null),
     items.length ? el("ul", { class: "gifts" }, ...items) : el("p", { class: "empty-tag" }, vide));
 }
 const bouton = (txt, onclick, cls = "ghost") => el("button", { class: cls, type: "button", onclick }, txt);
@@ -246,7 +248,7 @@ function render() {
 
   // --- Ma liste d'envies (sans jamais montrer ce qui est acheté) ---
   const mw = $("my-wishes"); mw.replaceChildren();
-  if (!mesEnvies.length) mw.append(el("p", { class: "empty-tag" }, "Ta liste est vide. Ajoute ce qui te ferait plaisir."));
+  if (!mesEnvies.length) mw.append(el("p", { class: "empty-tag" }, "Cher Père Noël, cette année j'aimerais…"));
   for (const w of mesEnvies) mw.append(ligne({
     titre: w.titre, lien: w.lien, meta: w.note ? [el("span", {}, w.note)] : [],
     actions: [bouton("Modifier", () => startWish(w)),
@@ -263,7 +265,7 @@ function render() {
   const acheteurs = [...new Set(gifts.map(acheteurDe).filter(Boolean))]
     .sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr"));
   const lg = $("legend"); lg.hidden = !acheteurs.length;
-  lg.replaceChildren(el("span", {}, "Acheté par :"), ...acheteurs.map(puce));
+  lg.replaceChildren(el("span", {}, "Qui a acheté quoi :"), ...acheteurs.map(puce));
 
   // --- Une étiquette par personne (sauf moi) ---
   const list = $("list"); list.replaceChildren();
@@ -281,7 +283,7 @@ function render() {
     // Idées pas encore achetées
     const idees = sesCadeaux.filter(g => !acheteurDe(g)).sort(parDate).map(g => ligne({
       titre: g.titre, lien: g.lien,
-      meta: [el("span", {}, "idée de " + (g.par === moi ? "toi" : nameOf(g.par))), g.note ? el("span", {}, "· " + g.note) : null],
+      meta: [el("span", {}, "Idée de " + (g.par === moi ? "toi" : nameOf(g.par))), g.note ? el("span", { class: "note-txt" }, g.note) : null],
       actions: [bouton("Je l'achète", () => acheterIdee(g), "buy"),
                 ...(g.par === moi ? [bouton("Modifier", () => startEdit(g)),
                                      confirmBtn("Supprimer", () => deleteDoc(doc(db, "cadeaux", g.id)).catch(writeErr))] : [])]
@@ -289,21 +291,21 @@ function render() {
     // Achetés, avec la couleur de l'acheteur
     const achetes = sesCadeaux.filter(g => acheteurDe(g)).sort(parDate).map(g => {
       const qui = acheteurDe(g);
-      const origine = g.envie ? "de sa liste" : g.par !== qui ? "idée de " + (g.par === moi ? "toi" : nameOf(g.par)) : null;
+      const origine = g.envie ? "de sa lettre" : g.par !== qui ? "idée de " + (g.par === moi ? "toi" : nameOf(g.par)) : null;
       const actions = [];
       if (qui === moi) {
         if (g.par === moi && !g.envie) actions.push(bouton("Modifier", () => startEdit(g)));
         actions.push(confirmBtn("Annuler l'achat", () => annulerAchat(g)));
       }
       return ligne({ titre: g.titre, lien: g.lien, acheteur: qui, actions,
-        meta: [puce(qui), origine ? el("span", {}, origine) : null, g.note ? el("span", {}, "· " + g.note) : null] });
+        meta: [puce(qui), origine ? el("span", {}, origine) : null, g.note ? el("span", { class: "note-txt" }, g.note) : null] });
     });
 
-    list.append(el("article", { class: "tag" },
+    list.append(el("article", { class: "tag" + (m.enfant ? " kid" : "") },
       el("div", { class: "tag-head" },
         el("h3", {}, m.nom, m.enfant ? el("span", { class: "badge" }, "enfant") : null),
-        el("span", { class: "sum" }, achetes.length ? pl(achetes.length, "cadeau acheté", "cadeaux achetés") : "")),
-      m.enfant ? null : rubrique("Ses envies", envies, "Pas d'envie notée pour l'instant."),
+        achetes.length ? el("span", { class: "sum" }, pl(achetes.length, "cadeau sous le sapin", "cadeaux sous le sapin")) : null),
+      m.enfant ? null : rubrique("Sa lettre au Père Noël", envies, "Sa lettre est encore vide."),
       rubrique("Idées", idees, m.enfant ? "Pas encore d'idée. Note la première !" : null),
       rubrique("Achetés", achetes, null)));
   }
