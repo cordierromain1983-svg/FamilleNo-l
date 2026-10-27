@@ -229,10 +229,16 @@ function render() {
   const ul = $("manage-list"); ul.replaceChildren();
   for (const m of members) {
     const li = el("li", { class: "me", style: "padding:8px 12px" },
-      el("div", {}, el("div", {}, m.nom + (m.id === moi ? " (toi)" : "")),
-        el("div", { class: "sub small" }, "identifiant : " + m.id)));
+      el("div", {},
+        el("div", {}, m.nom + (m.id === moi ? " (toi)" : ""), m.enfant ? el("span", { class: "badge" }, "enfant") : null),
+        el("div", { class: "sub small" }, m.enfant ? "sans accès au site" : "identifiant : " + m.id)));
+    const act = el("div", { class: "row" });
+    if (m.id !== moi && !m.enfant && m.id !== ORGANISATEUR)
+      act.append(confirmBtn("Passer en enfant", () =>
+        updateDoc(doc(db, "membres", m.id), { enfant: true }).catch(writeErr)));
     if (m.id !== moi && !gifts.some(g => g.pour === m.id || g.par === m.id))
-      li.append(confirmBtn("Retirer", () => deleteDoc(doc(db, "membres", m.id)).catch(writeErr)));
+      act.append(confirmBtn("Retirer", () => deleteDoc(doc(db, "membres", m.id)).catch(writeErr)));
+    li.append(act);
     ul.append(li);
   }
 }
@@ -245,13 +251,34 @@ function getAuthCreation() {
   return authCreation;
 }
 let idModifie = false;
+function majFormMembre() {
+  const enfant = $("m-enfant").checked;
+  for (const e of document.querySelectorAll("#member-form .acces")) e.hidden = enfant;
+  $("m-id").required = !enfant; $("m-mdp").required = !enfant;
+  $("m-submit").textContent = enfant ? "Ajouter l'enfant" : "Créer son accès";
+}
+$("m-enfant").addEventListener("change", majFormMembre);
 $("m-nom").addEventListener("input", () => { if (!idModifie) $("m-id").value = slug($("m-nom").value); });
 $("m-id").addEventListener("input", () => { idModifie = $("m-id").value !== ""; });
 $("m-id").addEventListener("blur", () => { $("m-id").value = slug($("m-id").value); });
 
 $("member-form").addEventListener("submit", async ev => {
   ev.preventDefault();
-  const nom = joli($("m-nom").value), id = slug($("m-id").value), mdp = $("m-mdp").value;
+  const nom = joli($("m-nom").value), enfant = $("m-enfant").checked;
+  if (enfant) {
+    // Pas de compte : juste une fiche, avec un identifiant interne unique.
+    let id = slug(nom) || "enfant", n = 2;
+    while (members.some(m => m.id === id)) id = slug(nom) + "-" + n++;
+    $("m-submit").disabled = true;
+    try {
+      await setDoc(doc(db, "membres", id), { nom, enfant: true });
+      $("member-form").reset(); idModifie = false; majFormMembre();
+      notice(`${nom} a été ajouté(e). On peut lui noter des cadeaux.`, true);
+    } catch (e) { writeErr(e); }
+    finally { $("m-submit").disabled = false; }
+    return;
+  }
+  const id = slug($("m-id").value), mdp = $("m-mdp").value;
   $("m-id").value = id;
   if (!nom || !id) return;
   if (members.some(m => m.id === id)) { notice(`L'identifiant « ${id} » est déjà utilisé dans la famille.`); return; }
@@ -269,7 +296,7 @@ $("member-form").addEventListener("submit", async ev => {
   }
   try {
     await setDoc(doc(db, "membres", id), { nom });
-    $("member-form").reset(); idModifie = false;
+    $("member-form").reset(); idModifie = false; majFormMembre();
     notice(`Accès créé pour ${nom} : identifiant « ${id} ». Transmets-lui son mot de passe provisoire.`, true);
   } catch (e) { writeErr(e); }
   finally { $("m-submit").disabled = false; }

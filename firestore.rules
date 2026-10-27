@@ -24,21 +24,29 @@ service cloud.firestore {
     function connecte() {
       return request.auth != null && request.auth.token.email is string;
     }
+    // Membre de la famille AVEC accès : les enfants (enfant == true) n'ont jamais accès,
+    // même si quelqu'un créait un compte avec leur identifiant.
     function estMembre() {
-      return connecte() && exists(/databases/$(database)/documents/membres/$(moi()));
+      return connecte()
+        && get(/databases/$(database)/documents/membres/$(moi())).data.get('enfant', false) == false;
     }
 
     // ----- Membres de la famille -----
     function membreValide(d) {
-      return d.keys().hasOnly(['nom'])
-        && d.nom is string && d.nom.size() > 0 && d.nom.size() <= 40;
+      return d.keys().hasOnly(['nom', 'enfant'])
+        && d.nom is string && d.nom.size() > 0 && d.nom.size() <= 40
+        && d.get('enfant', false) is bool;
     }
     match /membres/{membreId} {
       allow read: if estMembre();
       allow create: if membreId.matches('^[a-z0-9]+(-[a-z0-9]+)*$')
         && membreValide(request.resource.data)
-        && (estMembre() || (connecte() && membreId == moi() && moi() == organisateur()));
-      allow update: if estMembre() && membreValide(request.resource.data);
+        && (estMembre() || (connecte() && membreId == moi() && moi() == organisateur()
+                            && request.resource.data.get('enfant', false) == false));
+      // On ne peut pas passer en "enfant" (sans accès) ni soi-même ni l'organisateur.
+      allow update: if estMembre() && membreValide(request.resource.data)
+        && (request.resource.data.get('enfant', false) == false
+            || (membreId != moi() && membreId != organisateur()));
       // Retirer quelqu'un lui coupe l'accès. On ne peut pas se retirer soi-même.
       allow delete: if estMembre() && membreId != moi();
     }

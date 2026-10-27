@@ -106,12 +106,13 @@
         <ul id="manage-list" class="stack" style="list-style:none;margin:0;padding:0;gap:6px"></ul>
         <form id="member-form" class="grid" style="padding:0" autocomplete="off">
           <h3 class="full" style="font-size:17px">Ajouter quelqu'un</h3>
-          <label>Nom affiché<input id="m-nom" required maxlength="40" placeholder="ex. Mamie Jeanne"></label>
-          <label>Identifiant<input id="m-id" required maxlength="40" autocapitalize="none" spellcheck="false" placeholder="ex. mamie-jeanne"></label>
-          <label class="full">Mot de passe provisoire (6 caractères minimum)<input id="m-mdp" minlength="6" required autocomplete="new-password" placeholder="à lui transmettre"></label>
+          <label class="full">Nom affiché<input id="m-nom" required maxlength="40" placeholder="ex. Mamie Jeanne"></label>
+          <label class="full check"><input id="m-enfant" type="checkbox"> Enfant : on lui note des cadeaux, mais sans accès au site</label>
+          <label class="acces">Identifiant<input id="m-id" required maxlength="40" autocapitalize="none" spellcheck="false" placeholder="ex. mamie-jeanne"></label>
+          <label class="acces">Mot de passe provisoire<input id="m-mdp" minlength="6" required autocomplete="new-password" placeholder="6 caractères minimum"></label>
           <div class="actions"><button type="submit" class="primary" id="m-submit">Créer son accès</button></div>
         </form>
-        <p class="sub small">Transmets l'identifiant et le mot de passe provisoire à la personne : elle pourra le changer avec le bouton « Mot de passe ». Retirer quelqu'un lui coupe l'accès.</p>
+        <p class="sub small">Transmets l'identifiant et le mot de passe provisoire à la personne : elle pourra le changer avec le bouton « Mot de passe ». Retirer quelqu'un ou le passer en « enfant » lui coupe l'accès.</p>
       </div>
     </details>
   </section>

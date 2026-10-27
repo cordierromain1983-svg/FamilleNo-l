@@ -25,6 +25,10 @@ Un petit site familial pour noter les cadeaux de Noël qu'on a achetés pour les
 
 Tout membre de la famille peut ajouter quelqu'un. **Retirer** quelqu'un lui coupe immédiatement l'accès.
 
+**Les enfants** : coche « Enfant » en les ajoutant. Ils apparaissent dans le carnet pour qu'on leur note
+des cadeaux, mais n'ont aucun accès au site (le serveur le refuse, même si quelqu'un avait leur identifiant).
+Une personne déjà ajoutée peut être passée en enfant avec le bouton **Passer en enfant**.
+
 ## Questions pratiques
 
 **Quelqu'un a oublié son mot de passe.**

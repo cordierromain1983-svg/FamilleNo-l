@@ -70,3 +70,15 @@ test("seul l'acheteur modifie ou supprime son cadeau", async () => {
 test("on ne peut pas réorienter un cadeau vers soi pour le lire", async () => {
   await assertFails(updateDoc(doc(as("bob"), "cadeaux", "pourAlice"), { pour: "bob" }));
 });
+test("un enfant (sans accès) ne voit rien, même avec un compte à son identifiant", async () => {
+  await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), "membres", "enzo"), { nom: "Enzo", enfant: true }));
+  await assertFails(getDocs(collection(as("enzo"), "membres")));
+  await assertFails(getDoc(doc(as("enzo"), "cadeaux", "pourBob")));
+  await assertSucceeds(setDoc(doc(as("alice"), "cadeaux", "c5"), cadeau("alice", "enzo")));
+});
+test("on ne peut pas passer soi-même ou l'organisateur en enfant", async () => {
+  await assertFails(updateDoc(doc(as("alice"), "membres", "alice"), { enfant: true }));
+  await assertFails(updateDoc(doc(as("alice"), "membres", ORGA), { enfant: true }));
+  await assertSucceeds(updateDoc(doc(as("alice"), "membres", "bob"), { enfant: true }));
+  await assertFails(getDocs(collection(as("bob"), "membres")));
+});
